@@ -178,6 +178,18 @@
     </globalProperty>
 
     <globalProperty>
+        <property>${project.parent.artifactId}.encounter.encounterStrategy</property>
+        <defaultValue>DefaultEncounterStrategy</defaultValue>
+        <description>Set encounter strategy.</description>
+    </globalProperty>
+
+    <globalProperty>
+        <property>${project.parent.artifactId}.practitioner.practitionerStrategy</property>
+        <defaultValue>DefaultPractitionerStrategy</defaultValue>
+        <description>Set practitioner strategy.</description>
+    </globalProperty>
+
+    <globalProperty>
         <property>${project.parent.artifactId}.allergy.ObsAllergyStrategy.concept.uuid</property>
         <defaultValue>1234</defaultValue>
         <description>Concept id for allergy obs</description>
