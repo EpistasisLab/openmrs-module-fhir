@@ -215,7 +215,7 @@ public class FHIRObsUtil {
 				related.setType(Observation.ObservationRelationshipType.HASMEMBER);
 				resourceReferenceDt = new Reference();
 				resourceReferenceDt.setDisplay(ob.getConcept().getName().getName());
-				String obsUri = FHIRConstants.OBSERVATION + "/" + obs.getUuid();
+				String obsUri = FHIRConstants.OBSERVATION + "/" + ob.getUuid();
 				resourceReferenceDt.setReference(obsUri);
 				related.setTarget(resourceReferenceDt);
 				relatedObs.add(related);

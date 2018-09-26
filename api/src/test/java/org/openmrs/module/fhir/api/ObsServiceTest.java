@@ -194,11 +194,9 @@ public class ObsServiceTest extends BaseModuleContextSensitiveTest {
 		String obsUuid = "be3a4d7a-f9ab-47bb-aaad-bc0b452fcda4";
 		Observation fhirObservation = getService().getObs(obsUuid);
 		fhirObservation.setStatus(Observation.ObservationStatus.AMENDED);
-		
 		CodeableConcept interpretation = new CodeableConcept();
 		interpretation.setText("CRITICALLY_LOW");
 		fhirObservation.setInterpretation(interpretation);
-		
 		Encounter encounter = Context.getEncounterService().getEncounter(3);
 		Obs obs = FHIRObsUtil.generateOpenMRSObsWithEncounter(fhirObservation, encounter, new ArrayList<String>());
 		assertNotNull(obs);
@@ -206,6 +204,28 @@ public class ObsServiceTest extends BaseModuleContextSensitiveTest {
 		assertEquals(Status.AMENDED, obs.getStatus());
 		assertEquals(Interpretation.CRITICALLY_LOW, obs.getInterpretation());
 	}
+
+       @Test
+       public void generateOpenMRSObsGroup_shouldGenerateOpenMRSObsGroup() {
+
+               String obsUuid1 = "be3a4d7a-f9ab-47bb-aaad-bc0b452fcda4";
+               String obsUuid2 = "b5499df2-b17c-4b39-88a6-44591c165569";
+               Observation fhirObservation1 = getService().getObs(obsUuid1);
+               Observation fhirObservation2 = getService().getObs(obsUuid2);
+               fhirObservation1.setStatus(Observation.ObservationStatus.AMENDED);
+               
+               CodeableConcept interpretation = new CodeableConcept();
+               interpretation.setText("CRITICALLY_LOW");
+               fhirObservation1.setInterpretation(interpretation);
+               
+               Encounter encounter = Context.getEncounterService().getEncounter(3);
+               Obs obs = FHIRObsUtil.generateOpenMRSObsWithEncounter(fhirObservation1, encounter, new ArrayList<String>());
+               assertNotNull(obs);
+               assertNotNull(obs.getEncounter());
+               assertEquals(Status.AMENDED, obs.getStatus());
+               assertEquals(Interpretation.CRITICALLY_LOW, obs.getInterpretation());
+       }
+
 
 
 	@Test
