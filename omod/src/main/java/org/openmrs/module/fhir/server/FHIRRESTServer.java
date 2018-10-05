@@ -28,22 +28,25 @@ import org.openmrs.module.fhir.providers.RestfulConditionResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulDiagnosticReportResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulEncounterResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulFamilyMemberHistoryResourceProvider;
+import org.openmrs.module.fhir.providers.RestfulGroupResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulLocationResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulMedicationRequestProvider;
+import org.openmrs.module.fhir.providers.RestfulMedicationResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulObservationResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulPatientResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulPersonResourceProvider;
+import org.openmrs.module.fhir.providers.RestfulPlanDefinitionResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulPractitionerResourceProvider;
 import org.openmrs.module.fhir.providers.RestfulRelatedPersonProvider;
 import org.openmrs.module.fhir.util.FHIROmodConstants;
 
-import javax.servlet.ServletException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class FHIRRESTServer extends RestfulServer {
 
 	private static final long serialVersionUID = 1L;
+
 	private static final String MODULE_SERVELET_PREFIX = "/fhir/fhirServelet";
 
 	/**
@@ -52,7 +55,7 @@ public class FHIRRESTServer extends RestfulServer {
 	 * configuration, interceptors, etc.
 	 */
 	@Override
-	protected void initialize() throws ServletException {
+	protected void initialize() {
 		this.setServerAddressStrategy(new OpenMRSFHIRRequestAddressStrategy());
 		List<IResourceProvider> resourceProviders = new ArrayList<IResourceProvider>();
 		resourceProviders.add(new RestfulPatientResourceProvider());
@@ -64,11 +67,14 @@ public class FHIRRESTServer extends RestfulServer {
 		resourceProviders.add(new RestfulPractitionerResourceProvider());
 		resourceProviders.add(new RestfulConditionResourceProvider());
 		resourceProviders.add(new RestfulDiagnosticReportResourceProvider());
+		resourceProviders.add(new RestfulMedicationResourceProvider());
 		resourceProviders.add(new RestfulMedicationRequestProvider());
+		resourceProviders.add(new RestfulPlanDefinitionResourceProvider());
 		//Removing composition since we now not support for it
 		//resourceProviders.add(new RestfulCompositionResourceProvider());
 		resourceProviders.add(new RestfulPersonResourceProvider());
 		resourceProviders.add(new RestfulRelatedPersonProvider());
+		resourceProviders.add(new RestfulGroupResourceProvider());
 		this.setFhirContext(FhirContext.forDstu3());
 		setResourceProviders(resourceProviders);
 		setServerName(FHIROmodConstants.OPENMRS_FHIR_SERVER_NAME);
@@ -87,7 +93,7 @@ public class FHIRRESTServer extends RestfulServer {
 		registerInterceptor(loggingInterceptor);
 		loggingInterceptor.setLoggerName("test.accesslog");
 		loggingInterceptor
-		        .setMessageFormat("Source[${remoteAddr}] Operation[${operationType} ${idOrResourceName}] " +
+				.setMessageFormat("Source[${remoteAddr}] Operation[${operationType} ${idOrResourceName}] " +
 						"UA[${requestHeader.user-agent}] Params[${requestParameters}]");
 		ServerCapabilityStatementProvider sc = new ServerCapabilityStatementProvider(this);
 		this.setServerConformanceProvider(sc);

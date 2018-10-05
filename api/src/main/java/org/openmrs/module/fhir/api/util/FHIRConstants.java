@@ -18,22 +18,18 @@ import java.util.Map;
 
 public final class FHIRConstants {
 
-	public static Map<String, ConceptSourceNameURIPair> conceptSourceMap = new HashMap<String, ConceptSourceNameURIPair>();
-
-	public static Map<String, String> conceptSourceURINameMap = new HashMap<String, String>();
-
 	public static final String OPENMRS_URI = "http://openmrs.org";
 
 	//Concept source URIs
 	public static final String LOINC_URI = "http://loinc.org";
 
-	public static final String SNOMED_CT_URI = "http://snomed.info/sct";
-
 	public static final String SNOMED_URI = "http://snomed.info";
 
-	public static final String SNOMED_NP_URI = "http://snomed.info/snp";
+	public static final String SNOMED_CT_URI = SNOMED_URI + "/sct";
 
-	public static final String SNOMED_MVP_URI = "http://snomed.info/smvp";
+	public static final String SNOMED_NP_URI = SNOMED_URI + "/snp";
+
+	public static final String SNOMED_MVP_URI = SNOMED_URI + "/smvp";
 
 	public static final String CIEL_URI = "http://ciel.org";
 
@@ -64,9 +60,9 @@ public final class FHIRConstants {
 	public static final String NDF_RT_NUI_URI = "http://www.nlm.nih.gov/research/umls/sourcereleasedocs/current/NDFRT/";
 
 	public static final String UCUM_URI = "http://unitsofmeasure.org/";
-	
+
 	public static final String OTHER = "UNSPECIFIED";
-	
+
 	public static final String COMPLEX_DATA_URL = "/complexObsServlet?obsId=";
 
 	//Concept Sources
@@ -76,9 +72,11 @@ public final class FHIRConstants {
 
 	public static final String SNOMED = "SNOMED";
 
-	public static final String SNOMED_CT = "SNOMED CT";
+	public static final String SNOMED_CT = SNOMED + " CT";
 
-	public static final String SNOMED_NP = "SNOMED NP";
+	public static final String SNOMED_NP = SNOMED + " NP";
+
+	public static final String SNOMED_MVP = SNOMED + " MVP";
 
 	public static final String ICD_10_WHO = "ICD-10-WHO";
 
@@ -86,11 +84,9 @@ public final class FHIRConstants {
 
 	public static final String PIH = "PIH";
 
-	public static final String PIH_MALAWI = "PIH Malawi";
+	public static final String PIH_MALAWI = PIH + " Malawi";
 
 	public static final String AMPATH = "AMPATH";
-
-	public static final String SNOMED_MVP = "SNOMED MVP";
 
 	public static final String MDRTB = "org.openmrs.module.mdrtb";
 
@@ -156,7 +152,7 @@ public final class FHIRConstants {
 	public static final String BIT_HL7_ABBREVATION = "BIT";
 
 	public static final String LOCATION_EXTENTION_URI = "http://resources.openmrs.org/doc/fhir/profiles/vitalsigns"
-	        + ".xml#location";
+			+ ".xml#location";
 
 	public static final String WEB_SERVICES_URI_PREFIX = "ws/rest";
 
@@ -173,7 +169,7 @@ public final class FHIRConstants {
 	public static final String MALE = "M";
 
 	public static final String FEMALE = "F";
-	
+
 	public static final String OTHER_GENDER = "o";
 
 	public static final String ACTIVE_LIST_ALLERGY_STRATEGY = "ActiveListAllergyStrategy";
@@ -191,6 +187,58 @@ public final class FHIRConstants {
 	public static final String OPENMRS_CONCEPT_CODING_SYSTEM = "OPENMRS";
 
 	public static final String NONE = "none";
+
+	// DiagnosticReport Constants
+	public static final String DIAGNOSTIC_REPORT_NAME = "name";
+
+	public static final String DIAGNOSTIC_REPORT_STATUS = "status";
+
+	public static final String DIAGNOSTIC_REPORT_RESULT = "result";
+
+	public static final String DIAGNOSTIC_REPORT_IMAGING_STUDY = "imaging_study";
+
+	public static final String DIAGNOSTIC_REPORT_PRESENTED_FORM = "presentedForm";
+
+	public static final String DIAGNOSTIC_REPORT = "DiagnosticReport";
+
+	public static final String PARAMETER_NAME = "name";
+
+	public static final String PARAMETER_GIVENNAME = "givenName";
+
+	public static final String PARAMETER_IDENTIFIER = "identifier";
+
+	public static final String REQUEST_ISSUE_LIST = "The request cannot be processed due to following issues \n";
+
+	//Global Property Names
+	public static final String CONCEPTS_CONVERTABLE_TO_CONDITIONS_STORED_AS_OBS = "fhir.concepts.conditions";
+
+	//module id or name
+	public static final String MODULE_ID = "fhir";
+
+	public static final String URI_PREFIX_GLOBAL_PROPERTY_NAME = MODULE_ID + ".uriPrefix";
+
+	public static final String DEFAULT = "DEFAULT";
+
+	public static final String CODING_0074 = "http://hl7.org/fhir/v2/0074";
+
+	public static final String FHIR_RETIRED_MESSAGE = "Retired by FHIR module";
+
+	public static final String FHIR_CREATE_MESSAGE = "Created by FHIR request";
+
+	public static final String FHIR_UPDATE_MESSAGE = "Updated by FHIR request";
+
+	public static final String FHIR_VOIDED_MESSAGE = "Voided by FHIR request";
+
+	public static final String POST = "POST";
+
+	public static final String PUT = "PUT";
+
+	public static final String DELETE = "DELETE";
+
+	public static Map<String, ConceptSourceNameURIPair> conceptSourceMap = new HashMap<String, ConceptSourceNameURIPair>();
+
+	public static Map<String, String> conceptSourceURINameMap = new HashMap<String, String>();
+
 	static {
 		conceptSourceMap.put(LOINC.toLowerCase(), new ConceptSourceNameURIPair(LOINC, LOINC_URI));
 		conceptSourceMap.put(CIEL.toLowerCase(), new ConceptSourceNameURIPair(CIEL, CIEL_URI));
@@ -227,50 +275,12 @@ public final class FHIRConstants {
 		conceptSourceURINameMap.put(HL7_2X_URI, HL7_2X);
 		conceptSourceURINameMap.put(BT_3_URI, BT_3);
 		conceptSourceURINameMap.put(ICPC2_URI, ICPC2);
-		conceptSourceURINameMap.put(IMO_PROBLEM_URI, EMRAPI);
+		conceptSourceURINameMap.put(EMRAPI_URI, EMRAPI);
 		conceptSourceURINameMap.put(MDRTB_URI, MDRTB);
 		conceptSourceURINameMap.put(IMO_PROBLEM_URI, IMO_PROBLEM);
 		conceptSourceURINameMap.put(IMP_PROCEDURE_URI, IMP_PROCEDURE);
 		conceptSourceURINameMap.put(NDF_RT_NUI_URI, NDF_RT_NUI);
 		conceptSourceURINameMap.put(UCUM_URI, UCUM);
 	}
-
-	// DiagnosticReport Constants
-	public static final String DIAGNOSTIC_REPORT_NAME = "name";
-	public static final String DIAGNOSTIC_REPORT_STATUS = "status";
-	public static final String DIAGNOSTIC_REPORT_RESULT = "result";
-	public static final String DIAGNOSTIC_REPORT_IMAGING_STUDY = "imaging_study";
-	public static final String DIAGNOSTIC_REPORT_PRESENTED_FORM = "presentedForm";
-	public static final String DIAGNOSTIC_REPORT = "DiagnosticReport";
-
-	public static final String PARAMETER_NAME = "name";
-	
-	public static final String PARAMETER_GIVENNAME = "givenName";
-	
-	public static final String PARAMETER_IDENTIFIER = "identifier";
-	
-	public static final String REQUEST_ISSUE_LIST = "The request cannot be processed due to following issues \n";
-
-	//Global Property Names
-	public static final String CONCEPTS_CONVERTABLE_TO_CONDITIONS_STORED_AS_OBS = "fhir.concepts.conditions";
-	//module id or name
-	public static final String MODULE_ID = "fhir";
-	public static final String URI_PREFIX_GLOBAL_PROPERTY_NAME = MODULE_ID + ".uriPrefix";
-
-	public static final String DEFAULT = "DEFAULT";
-	public static final String CODING_0074 = "http://hl7.org/fhir/v2/0074";
-	public static final String ENCOUNTER_DELETE_MESSAGE = "DELETED by FHIR request";
-	public static final String OBS_DELETE_MESSAGE = "DELETED by FHIR Request";
-	public static final String OBS_CREATE_MESSAGE = "CREATED by FHIR Request";
-	public static final String OBS_UPDATE_MESSAGE = "Updated via FHIR";
-	public static final String PATIENT_DELETE_MESSAGE  = "DELETED by FHIR request";
-	public static final String PERSON_VOIDED_MESSAGE  = "Voided by FHIR Request";
-	public static final String PATIENT_VOIDED_MESSAGE  = "Deleted from FHIR module";
-
-	public static final String POST  = "POST";
-	public static final String PUT  = "PUT";
-	public static final String DELETE  = "DELETE";
-
-	public static final String ORDER_DELETE_MESSAGE = "DELETED by FHIR Request";
 
 }

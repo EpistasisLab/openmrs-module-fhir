@@ -27,7 +27,6 @@ import org.openmrs.PersonAddress;
 import org.openmrs.PersonName;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.fhir.api.util.FHIRPersonUtil;
-import org.openmrs.module.fhir.exception.FHIRValidationException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 import java.util.ArrayList;
@@ -60,7 +59,7 @@ public class PersonServiceTest extends BaseModuleContextSensitiveTest {
 	}
 
 	@Test
-	public void getPerson_shouldReturnResourceIfExists() throws FHIRValidationException {
+	public void getPerson_shouldReturnResourceIfExists() {
 		String personUuid = "dagh524f-27ce-4bb2-86d6-6d1d05312bd5";
 		Person fhirPerson = getService().getPerson(personUuid);
 		assertNotNull(fhirPerson);
@@ -69,7 +68,7 @@ public class PersonServiceTest extends BaseModuleContextSensitiveTest {
 	}
 
 	@Test
-	public void searchPatientsById_shouldReturnBundleIfExists() throws FHIRValidationException {
+	public void searchPatientsById_shouldReturnBundleIfExists() {
 		String personUuid = "dagh524f-27ce-4bb2-86d6-6d1d05312bd5";
 		List<Person> persons = getService().searchPersonByUuid(personUuid);
 		assertNotNull(persons);
@@ -104,7 +103,7 @@ public class PersonServiceTest extends BaseModuleContextSensitiveTest {
 		String personUuid = "dagh524f-27ce-4bb2-86d6-6d1d05312bd5";
 		org.openmrs.Person person = Context.getPersonService().getPersonByUuid(personUuid);
 		person.setUuid(""); // remove the uuid value from the Person. This will let this
-							// resource to be persist on the db with random uuid
+		// resource to be persist on the db with random uuid
 		Person fhirPerson = FHIRPersonUtil.generatePerson(person);
 		fhirPerson = Context.getService(PersonService.class).createFHIRPerson(fhirPerson);
 		assertNotNull(fhirPerson);

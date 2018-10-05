@@ -27,15 +27,12 @@ import ca.uhn.fhir.rest.param.ReferenceParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import ca.uhn.fhir.rest.server.IResourceProvider;
 import org.hl7.fhir.dstu3.model.Bundle;
-import org.hl7.fhir.dstu3.model.CodeableConcept;
-import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.Encounter;
 import org.hl7.fhir.dstu3.model.IdType;
-import org.hl7.fhir.dstu3.model.OperationOutcome;
 import org.hl7.fhir.dstu3.model.Patient;
 import org.hl7.fhir.dstu3.model.Resource;
-import org.openmrs.module.fhir.api.util.FHIRConstants;
 import org.openmrs.module.fhir.resources.FHIREncounterResource;
+import org.openmrs.module.fhir.util.MethodOutcomeBuilder;
 
 import java.util.List;
 
@@ -57,10 +54,10 @@ public class RestfulEncounterResourceProvider implements IResourceProvider {
 	 * operations should return a single resource instance.
 	 *
 	 * @param theId The read operation takes one parameter, which must be of type IdType and must be
-	 *            annotated with the "@Read.IdParam" annotation.
+	 *              annotated with the "@Read.IdParam" annotation.
 	 * @return Returns a resource matching this identifier, or nu	ll if none exists.
 	 */
-	@Read()
+	@Read
 	public Encounter getResourceById(@IdParam IdType theId) {
 		return encounterResource.getByUniqueId(theId);
 	}
@@ -70,8 +67,8 @@ public class RestfulEncounterResourceProvider implements IResourceProvider {
 	 *
 	 * @param id object containing the requested id
 	 */
-	@Search()
-	public List<Encounter> searchEncountersByUniqueId(@RequiredParam(name = Encounter.SP_RES_ID) TokenParam id) {
+	@Search
+	public List<Encounter> findEncountersByUniqueId(@RequiredParam(name = Encounter.SP_RES_ID) TokenParam id) {
 		return encounterResource.searchEncountersById(id);
 	}
 
@@ -80,8 +77,9 @@ public class RestfulEncounterResourceProvider implements IResourceProvider {
 	 *
 	 * @param identifier object containing the patient identifier
 	 */
-	@Search()
-	public List<Encounter> searchEncountersByPatientIdentifier(@RequiredParam(name = Patient.SP_IDENTIFIER) ReferenceParam identifier) {
+	@Search
+	public List<Encounter> findEncountersByPatientIdentifier(
+			@RequiredParam(name = Patient.SP_IDENTIFIER) ReferenceParam identifier) {
 		return encounterResource.searchEncountersByPatientIdentifier(identifier);
 	}
 
@@ -89,11 +87,12 @@ public class RestfulEncounterResourceProvider implements IResourceProvider {
 	 * Search encounters by patient identifier and encounter part of
 	 *
 	 * @param patientIdentifier the patient identifier
-	 * @param partOf the top level visit
+	 * @param partOf            the top level visit
 	 */
-	@Search()
-	public List<Encounter> searchEncountersByPatientIdentifierAndPartOf(@RequiredParam(name = Patient.SP_IDENTIFIER) ReferenceParam patientIdentifier,
-	                                                                    @RequiredParam(name = Encounter.SP_PART_OF) ReferenceParam partOf) {
+	@Search
+	public List<Encounter> findEncountersByPatientIdentifierAndPartOf(
+			@RequiredParam(name = Patient.SP_IDENTIFIER) ReferenceParam patientIdentifier,
+			@RequiredParam(name = Encounter.SP_PART_OF) ReferenceParam partOf) {
 		return encounterResource.searchEncountersByPatientIdentifierAndPartOf(patientIdentifier, partOf);
 	}
 
@@ -101,11 +100,11 @@ public class RestfulEncounterResourceProvider implements IResourceProvider {
 	 * Search encounters by patient identifier and encounter part of
 	 *
 	 * @param encounterId the encounter id
-	 * @param partOf the top level visit
+	 * @param partOf      the top level visit
 	 */
-	@Search()
-	public List<Encounter> searchEncountersByIdAndPartOf(@RequiredParam(name = Encounter.SP_RES_ID) TokenParam encounterId,
-	                                                     @RequiredParam(name = Encounter.SP_PART_OF) ReferenceParam partOf) {
+	@Search
+	public List<Encounter> findEncountersByIdAndPartOf(@RequiredParam(name = Encounter.SP_RES_ID) TokenParam encounterId,
+			@RequiredParam(name = Encounter.SP_PART_OF) ReferenceParam partOf) {
 		return encounterResource.searchEncountersByIdAndPartOf(encounterId, partOf);
 	}
 
@@ -129,45 +128,28 @@ public class RestfulEncounterResourceProvider implements IResourceProvider {
 	public void deleteEncounter(@IdParam IdType theId) {
 		encounterResource.deleteEncounter(theId);
 	}
-	
+
 	/**
 	 * Create Encounter
 	 *
 	 * @param encounter fhir encounter object
 	 * @return This method returns Meth codOutcome object, which contains information about the
-	 *         create operation
+	 * create operation
 	 */
 	@Create
 	public MethodOutcome createFHIREncounter(@ResourceParam Encounter encounter) {
-		encounter = encounterResource.createFHIREncounter(encounter);
-		MethodOutcome retVal = new MethodOutcome();
-		retVal.setId(new IdType(FHIRConstants.ENCOUNTER, encounter.getId()));
-		OperationOutcome outcome = new OperationOutcome();
-		CodeableConcept concept = new CodeableConcept();
-		Coding coding = concept.addCoding();
-		coding.setDisplay("Encounter is successfully created");
-		outcome.addIssue().setDetails(concept);
-		retVal.setOperationOutcome(outcome);
-		return retVal;
+		return MethodOutcomeBuilder.buildCreate(encounterResource.createFHIREncounter(encounter));
 	}
 
 	/**
 	 * Update encounter
 	 *
 	 * @param encounter fhir encounter object
-	 * @param theId id of the encounter
+	 * @param theId     id of the encounter
 	 * @return MethodOutcome which contains the status of the update operation
 	 */
 	@Update
 	public MethodOutcome updateEncounter(@ResourceParam Encounter encounter, @IdParam IdType theId) {
-		MethodOutcome retVal = new MethodOutcome();
-		OperationOutcome outcome = new OperationOutcome();
-		encounterResource.updateEncounter(encounter, theId.getIdPart());
-		CodeableConcept concept = new CodeableConcept();
-		Coding coding = concept.addCoding();
-		coding.setDisplay("Encounter is successfully updated with id " + encounter.getId());
-		outcome.addIssue().setDetails(concept);
-		retVal.setOperationOutcome(outcome);
-		return retVal;
+		return MethodOutcomeBuilder.buildUpdate(encounterResource.updateEncounter(encounter, theId.getIdPart()));
 	}
 }

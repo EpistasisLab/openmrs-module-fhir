@@ -13,18 +13,12 @@
  */
 package org.openmrs.module.fhir.api;
 
-import ca.uhn.fhir.context.FhirContext;
-import ca.uhn.fhir.parser.IParser;
-import ca.uhn.fhir.parser.JsonParser;
-import ca.uhn.fhir.parser.StrictErrorHandler;
-import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.MedicationRequest;
 import org.junit.Before;
 import org.junit.Test;
 import org.openmrs.Patient;
 import org.openmrs.api.context.Context;
 import org.openmrs.module.fhir.api.util.FHIRConstants;
-import org.openmrs.module.fhir.exception.FHIRValidationException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 import java.util.List;
@@ -56,20 +50,20 @@ public class MedicationRequestTest extends BaseModuleContextSensitiveTest {
 		String medicationRequestUuid = "56b9196c-bcac-4c2f-b3a2-123464a96439";
 		MedicationRequest medicationRequest = getService().getMedicationRequestById(medicationRequestUuid);
 		assertNotNull(medicationRequest);
-		assertEquals(medicationRequestUuid, medicationRequest.getId().toString());
+		assertEquals(medicationRequestUuid, medicationRequest.getId());
 	}
 
 	@Test
-	public void searchMedicationRequestById_shouldReturnBundle() throws FHIRValidationException {
+	public void searchMedicationRequestById_shouldReturnBundle() {
 		String medicationRequestUuid = "56b9196c-bcac-4c2f-b3a2-123464a96439";
 		List<MedicationRequest> medicationRequests = getService().searchMedicationRequestById(medicationRequestUuid);
 		assertNotNull(medicationRequests);
 		assertEquals(medicationRequests.size(), 1);
-		assertEquals(medicationRequestUuid, medicationRequests.get(0).getId().toString());
+		assertEquals(medicationRequestUuid, medicationRequests.get(0).getId());
 	}
 
 	@Test
-	public void searchMedicationRequestByPatientId_shouldReturnBundle() throws FHIRValidationException {
+	public void searchMedicationRequestByPatientId_shouldReturnBundle() {
 		Patient patient = Context.getPatientService().getPatient(2);
 		String patientUuid = patient.getUuid();
 		List<MedicationRequest> medicationRequests = getService().searchMedicationRequestByPatientId(patientUuid);
@@ -82,13 +76,13 @@ public class MedicationRequestTest extends BaseModuleContextSensitiveTest {
 		org.openmrs.api.OrderService orderService = Context.getOrderService();
 		org.openmrs.Order order = orderService.getOrder(2000);
 		assertNotNull(order);
-		orderService.voidOrder(order, FHIRConstants.ORDER_DELETE_MESSAGE);
+		orderService.voidOrder(order, FHIRConstants.FHIR_VOIDED_MESSAGE);
 		order = orderService.getOrder(2000);
 		assertTrue(order.isVoided());
 	}
 
 	@Test
-	public void createMedicationRequest_shouldCreateNewMedicationRequest() throws FHIRValidationException {
+	public void createMedicationRequest_shouldCreateNewMedicationRequest() {
 		String medicationRequestUuid = "56b9196c-bcac-4c2f-b3a2-123464a96439";
 		MedicationRequest medicationRequest = getService().getMedicationRequestById(medicationRequestUuid);
 		assertNotNull(medicationRequest);
@@ -98,7 +92,7 @@ public class MedicationRequestTest extends BaseModuleContextSensitiveTest {
 		assertEquals(medicationRequest.getContext().getReference(), createdMedicationRequest.getContext().getReference());
 		assertEquals(medicationRequest.getRecorder().getReference(), createdMedicationRequest.getRecorder().getReference());
 		assertEquals(medicationRequest.getRequester().getAgent().getReference(),
-														createdMedicationRequest.getRequester().getAgent().getReference());
+				createdMedicationRequest.getRequester().getAgent().getReference());
 
 	}
 }

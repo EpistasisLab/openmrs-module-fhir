@@ -65,14 +65,6 @@ public class AuthorizationFilter implements Filter {
 	public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain) throws IOException,
 			ServletException {
 
-		// check the IP address first.  If its not valid, return a 403
-		if (false) {
-			// the ip address is not valid, set a 403 http error code
-			HttpServletResponse httpresponse = (HttpServletResponse) response;
-			httpresponse.sendError(HttpServletResponse.SC_FORBIDDEN, "IP address '" + request.getRemoteAddr()
-			                                                         + "' is not authorized");
-		}
-
 		// skip if the session has timed out, we're already authenticated, or it's not an HTTP request
 		if (request instanceof HttpServletRequest) {
 			HttpServletRequest httpRequest = (HttpServletRequest) request;
@@ -93,7 +85,8 @@ public class AuthorizationFilter implements Filter {
 						if (log.isDebugEnabled()) {
 							log.debug("authenticated " + userAndPass[0]);
 						}
-					} catch (Exception ex) {
+					}
+					catch (Exception ex) {
 						// This filter never stops execution. If the user failed to
 						// authenticate, that will be caught later.
 					}
