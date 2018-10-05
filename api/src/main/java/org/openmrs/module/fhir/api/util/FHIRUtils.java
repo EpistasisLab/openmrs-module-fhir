@@ -85,20 +85,24 @@ public class FHIRUtils {
 		return urnBuilder.toString();
 	}
 
+	public static String getMedicationStrategy() {
+		return Context.getAdministrationService().getGlobalProperty("fhir.medication.strategy");
+	}
+
 	public static String getAllergyStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.allergy.allergyStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.allergy.strategy");
 	}
 
 	public static String getPersonStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.person.personStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.person.strategy");
 	}
 
 	public static String getPatientStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.patient.patientStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.patient.strategy");
 	}
 
 	public static String getRelatedPersonStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.relatedPerson.relatedPersonStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.relatedPerson.strategy");
 	}
 
 	public static String getAppointmentStrategy() {
@@ -106,15 +110,15 @@ public class FHIRUtils {
 	}
 
 	public static String getLocationStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.location.locationStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.location.strategy");
 	}
 
 	public static String getObservationStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.observation.observationStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.observation.strategy");
 	}
 
 	public static String getGroupStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.group.groupStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.group.strategy");
 	}
 
 	public static String getEncounterStrategy() {
@@ -122,7 +126,7 @@ public class FHIRUtils {
 	}
 
 	public static String getPractitionerStrategy() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.practitioner.practitionerStrategy");
+		return Context.getAdministrationService().getGlobalProperty("fhir.practitioner.strategy");
 	}
 
 	public static String getPlanDefinitionStrategy() {
@@ -146,7 +150,7 @@ public class FHIRUtils {
 	}
 
 	public static String getObsAllergyStrategyConceptUuid() {
-		return Context.getAdministrationService().getGlobalProperty("fhir.allergy.ObsAllergyStrategy.concept.uuid");
+		return Context.getAdministrationService().getGlobalProperty("fhir.allergy.strategy.concept.uuid");
 	}
 
 	public static String getConceptCodingSystem() {
@@ -265,9 +269,8 @@ public class FHIRUtils {
 	 * Generates practitioner referenceDt
 	 *
 	 * @param provider the provider ob
-	 *
 	 * @return the practitioner resource reference
-     */
+	 */
 	public static Reference buildPractitionerReference(org.openmrs.Provider provider) {
 		Reference providerDt = new Reference();
 		StringBuilder providerNameDisplay = new StringBuilder();
@@ -311,13 +314,15 @@ public class FHIRUtils {
 		ConceptSourceNameURIPair sourceNameURIPair = FHIRConstants.conceptSourceMap.get(conceptMap
 				.getConceptReferenceTerm().getConceptSource().getName().toLowerCase());
 		if (sourceNameURIPair != null) {
-			return codeableConcept.addCoding(new Coding().setCode(conceptMap.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem
-					(sourceNameURIPair.getConceptSourceURI()));
+			return codeableConcept.addCoding(
+					new Coding().setCode(conceptMap.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem
+							(sourceNameURIPair.getConceptSourceURI()));
 		}
 		if (display != null && !display.isEmpty()) {
-			return codeableConcept.addCoding(new Coding().setCode(conceptMap.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(
-					conceptMap
-							.getConceptReferenceTerm().getConceptSource().getName()));
+			return codeableConcept.addCoding(
+					new Coding().setCode(conceptMap.getConceptReferenceTerm().getCode()).setDisplay(display).setSystem(
+							conceptMap
+									.getConceptReferenceTerm().getConceptSource().getName()));
 		} else {
 			return codeableConcept.addCoding(new Coding().setCode(conceptMap.getConceptReferenceTerm().getCode()).setSystem(
 					conceptMap.getConceptReferenceTerm().getConceptSource().getName()));
@@ -325,10 +330,10 @@ public class FHIRUtils {
 	}
 
 	public static AllergyIntolerance.AllergyIntoleranceReactionComponent getAllergyReactionComponent(ConceptMap conceptMap
-												, AllergyIntolerance.AllergyIntoleranceReactionComponent component) {
+			, AllergyIntolerance.AllergyIntoleranceReactionComponent component) {
 		//Set concept source concept name as the display value and set concept uuid if name is empty
-		if(component == null) {
-			component  = new AllergyIntolerance.AllergyIntoleranceReactionComponent();
+		if (component == null) {
+			component = new AllergyIntolerance.AllergyIntoleranceReactionComponent();
 		}
 		CodeableConcept substance = new CodeableConcept();
 		String display = conceptMap.getConceptReferenceTerm().getName();
@@ -420,7 +425,7 @@ public class FHIRUtils {
 		Identifier identifier = objectRef.getIdentifier();
 		String uuid = objectRef.getId();
 
-		if(StringUtils.isEmpty(uuid) && identifier != null) {
+		if (StringUtils.isEmpty(uuid) && identifier != null) {
 			uuid = identifier.getId();
 		}
 
@@ -525,9 +530,48 @@ public class FHIRUtils {
 		if (!errors.isEmpty()) {
 			StringBuilder errorMessage = new StringBuilder("The request cannot be processed due to the following issues \n");
 			for (int i = 0; i < errors.size(); i++) {
-				errorMessage.append((i + 1) + " : " + errors.get(i) + "\n");
+				errorMessage.append(i + 1)
+						.append(" : ")
+						.append(errors.get(i))
+						.append("\n");
 			}
 			throw new UnprocessableEntityException(errorMessage.toString());
+		}
+	}
+
+	/**
+	 * Get concept from code
+	 *
+	 * @param codeableConcept codeable concept
+	 * @param errors          error list
+	 * @return OpenMRS concept
+	 */
+	public static Concept getConceptFromCode(CodeableConcept codeableConcept, List<String> errors) {
+		String conceptCode;
+		String system;
+		Concept concept = null;
+		List<Coding> dts = codeableConcept.getCoding();
+
+		for (Coding coding : dts) {
+			conceptCode = coding.getCode();
+			system = coding.getSystem();
+			if (FHIRConstants.OPENMRS_URI.equals(system)) {
+				concept = Context.getConceptService().getConceptByUuid(conceptCode);
+			} else {
+				String systemName = FHIRConstants.conceptSourceURINameMap.get(system);
+				if (systemName != null && !systemName.isEmpty()) {
+					concept = Context.getConceptService().getConceptByMapping(conceptCode, systemName);
+				}
+			}
+			if (concept != null) {
+				break;
+			}
+		}
+		if (concept == null) {
+			errors.add("No matching concept found for the given codings");
+			return null;
+		} else {
+			return concept;
 		}
 	}
 

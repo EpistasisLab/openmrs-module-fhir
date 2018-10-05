@@ -117,19 +117,17 @@ public class FHIRImagingStudyUtil {
 				omrsPatient = Context.getPatientService().savePatient(omrsPatient);
 				return omrsPatient;
 			} else {
-				StringBuilder errorMessage = new StringBuilder(
-						"The request cannot be processed due to the following issues\n");
-				for (int i = 0; i < errors.size(); i++) {
-					errorMessage.append(i + 1).append(" : ").append(errors.get(i)).append("\n");
-				}
-				throw new UnprocessableEntityException(errorMessage.toString());
+				String errorMessage = ErrorUtil
+						.generateErrorMessage(errors, "The request cannot be processed due to the following issues\n");
+				throw new UnprocessableEntityException(errorMessage);
 			}
 		} else {
 			return omrsPatient;
 		}
 	}
 
-	public static Obs generateOpenMRSSeriesObs(ImagingStudy.ImagingStudySeriesComponent series, org.openmrs.Patient omrsPatient) {
+	public static Obs generateOpenMRSSeriesObs(ImagingStudy.ImagingStudySeriesComponent series,
+			org.openmrs.Patient omrsPatient) {
 		Concept conceptSeries = FHIRUtils.getImagingStudySeriesConcept();
 		// Set `dateTime` as Obs DateTime
 		Date dateTime = new Date();
@@ -172,8 +170,9 @@ public class FHIRImagingStudyUtil {
 		return omrsSeries;
 	}
 
-	public static Obs generateOpenMRSInstanceObs(ImagingStudy.ImagingStudySeriesInstanceComponent instance, org.openmrs.Patient omrsPatient,
-	                                             Date dateTime) {
+	public static Obs generateOpenMRSInstanceObs(ImagingStudy.ImagingStudySeriesInstanceComponent instance,
+			org.openmrs.Patient omrsPatient,
+			Date dateTime) {
 		Concept conceptInstance = FHIRUtils.getImagingStudySeriesInstanceConcept();
 		Obs omrsInstance = new Obs(omrsPatient, conceptInstance, dateTime, null);
 		String value = "";
@@ -201,7 +200,7 @@ public class FHIRImagingStudyUtil {
 			byte[] bytes = "Test Complex Data".getBytes();
 			attachment.setData(bytes);
 		}
-		if(attachment.getTitle() == null) {
+		if (attachment.getTitle() == null) {
 			attachment.setTitle("Title");
 		}
 		ComplexData complexData = new ComplexData(attachment.getTitle(), attachment.getData());

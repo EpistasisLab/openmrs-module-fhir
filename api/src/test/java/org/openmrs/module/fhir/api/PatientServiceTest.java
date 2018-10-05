@@ -19,7 +19,6 @@ import org.hl7.fhir.dstu3.model.Patient;
 import org.junit.Before;
 import org.junit.Test;
 import org.openmrs.api.context.Context;
-import org.openmrs.module.fhir.exception.FHIRValidationException;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
 import java.util.List;
@@ -32,6 +31,7 @@ import static org.junit.Assert.assertTrue;
 public class PatientServiceTest extends BaseModuleContextSensitiveTest {
 
 	protected static final String PAT_INITIAL_DATA_XML = "org/openmrs/api/include/PatientServiceTest-createPatient.xml";
+
 	protected static final String PAT_SEARCH_DATA_XML = "org/openmrs/api/include/PatientServiceTest-findPatients.xml";
 
 	public PatientService getService() {
@@ -51,22 +51,22 @@ public class PatientServiceTest extends BaseModuleContextSensitiveTest {
 	}
 
 	@Test
-	public void getPatient_shouldReturnResourceIfExists() throws FHIRValidationException {
+	public void getPatient_shouldReturnResourceIfExists() {
 		String patientUuid = "61b38324-e2fd-4feb-95b7-9e9a2a4400df";
 		Patient fhirPatient = getService().getPatient(patientUuid);
 		assertNotNull(fhirPatient);
-		assertEquals(fhirPatient.getId().toString(), patientUuid);
+		assertEquals(fhirPatient.getId(), patientUuid);
 
 	}
 
 	@Test
-	public void searchPatientsById_shouldReturnBundleIfExists() throws FHIRValidationException {
+	public void searchPatientsById_shouldReturnBundleIfExists() {
 		String patientUuid = "61b38324-e2fd-4feb-95b7-9e9a2a4400df";
 		List<Patient> patients = getService().searchPatientsById(patientUuid);
 		assertNotNull(patients);
 		assertEquals(1, patients.size());
 		Patient fhirPatient = patients.get(0);
-		assertEquals(fhirPatient.getId().toString(), patientUuid);
+		assertEquals(fhirPatient.getId(), patientUuid);
 	}
 
 	@Test
@@ -77,7 +77,7 @@ public class PatientServiceTest extends BaseModuleContextSensitiveTest {
 		assertNotNull(patients);
 		assertEquals(1, patients.size());
 		Patient fhirPatient = patients.get(0);
-		assertEquals(fhirPatient.getId().toString(), returned_patientUuid);
+		assertEquals(fhirPatient.getId(), returned_patientUuid);
 		boolean exist = false;
 		for (Patient patient : patients) {
 			for (Identifier identifierDt : patient.getIdentifier()) {
@@ -98,7 +98,7 @@ public class PatientServiceTest extends BaseModuleContextSensitiveTest {
 		assertNotNull(patients);
 		assertEquals(1, patients.size());
 		Patient fhirPatient = patients.get(0);
-		assertEquals(fhirPatient.getId().toString(), returned_patientUuid);
+		assertEquals(fhirPatient.getId(), returned_patientUuid);
 		boolean exist = false;
 		for (Patient patient : patients) {
 			for (Identifier identifierDt : patient.getIdentifier()) {
@@ -147,7 +147,7 @@ public class PatientServiceTest extends BaseModuleContextSensitiveTest {
 		assertNotNull(patients);
 		assertEquals(3, patients.size());
 	}
-	
+
 	@Test
 	public void shouldFetchAllPatientsByName() {
 		List<org.openmrs.Patient> patients = Context.getPatientService().getPatients("Jeannette", null, null, true);

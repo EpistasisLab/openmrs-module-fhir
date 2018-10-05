@@ -25,6 +25,7 @@ import org.openmrs.module.fhir.api.util.FHIRPatientUtil;
 import org.openmrs.module.fhir.api.util.FHIRPractitionerUtil;
 import org.openmrs.module.fhir.api.util.FHIRUtils;
 import org.openmrs.module.fhir.api.util.FHIRVisitUtil;
+import org.openmrs.module.fhir.api.util.StrategyUtil;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -108,7 +109,8 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 		if (omrsEncounter != null) {
 			try {
 				encounterList.add(FHIREncounterUtil.generateComposition(omrsEncounter));
-			} catch (FHIRException e) {
+			}
+			catch (FHIRException e) {
 				String msg = "Error while searching the encounter composition with id " + id;
 				log.error(msg, e);
 			}
@@ -127,7 +129,8 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 		for (org.openmrs.Encounter enc : omrsEncounters) {
 			try {
 				fhirEncounters.add(FHIREncounterUtil.generateComposition(enc));
-			} catch (FHIRException e) {
+			}
+			catch (FHIRException e) {
 				String msg = "Error while searching the encounter composition by patient id " + patientId;
 				log.error(msg, e);
 			}
@@ -145,7 +148,8 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 		if (omrsEncounter != null) {
 			try {
 				encounterList.add(FHIREncounterUtil.generateComposition(omrsEncounter));
-			} catch (FHIRException e) {
+			}
+			catch (FHIRException e) {
 				String msg = "Error while searching the encounter composition by encounter id " + encounterId;
 				log.error(msg, e);
 			}
@@ -163,7 +167,7 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 
 	/**
 	 * @see org.openmrs.module.fhir.api.EncounterService#getEncounterOperationsById(String,
-	 *      org.hl7.fhir.dstu3.model.Bundle, boolean)
+	 * org.hl7.fhir.dstu3.model.Bundle, boolean)
 	 */
 	@Override
 	public Bundle getEncounterOperationsById(String encounterId, Bundle bundle, boolean includePatient) {
@@ -222,7 +226,7 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 
 	/**
 	 * @see org.openmrs.module.fhir.api.EncounterService#searchEncountersByPatientIdentifierAndPartOf(String,
-	 *      String)
+	 * String)
 	 */
 	@Override
 	public List<Encounter> searchEncountersByPatientIdentifierAndPartOf(String patientIdentifier, String partOf) {
@@ -252,7 +256,7 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 
 	/**
 	 * @see org.openmrs.module.fhir.api.EncounterService#searchEncountersByEncounterIdAndPartOf(String,
-	 *      String)
+	 * String)
 	 */
 	@Override
 	public List<Encounter> searchEncountersByEncounterIdAndPartOf(String encounterId, String partOf) {
@@ -283,7 +287,8 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 		Reference encounterRef = encounter.getPartOf();
 		Visit visit;
 
-		if (encounterRef != null && !encounterRef.isEmpty()) { // if partOf is not empty, This Encounter should be created under an Visit
+		if (encounterRef != null && !encounterRef
+				.isEmpty()) { // if partOf is not empty, This Encounter should be created under an Visit
 			encounterToCreate = FHIREncounterUtil.generateOMRSEncounter(encounter, errors);
 			String encounterRefUuid = FHIRUtils.getObjectUuidByReference(encounterRef);
 
@@ -311,13 +316,7 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 			visit = FHIRVisitUtil.generateOMRSVisit(encounter, errors);
 
 		}
-		if (!errors.isEmpty()) {
-			StringBuilder errorMessage = new StringBuilder("The request cannot be processed due to the following issues \n");
-			for (int i = 0; i < errors.size(); i++) {
-				errorMessage.append(i + 1).append(" : ").append(errors.get(i)).append("\n");
-			}
-			throw new UnprocessableEntityException(errorMessage.toString());
-		}
+		FHIRUtils.checkGeneratorErrorList(errors);
 
 		if (encounterRef != null && !encounterRef.isEmpty()) {
 			encounterToCreate = Context.getEncounterService().saveEncounter(encounterToCreate);
@@ -359,7 +358,8 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 		retrievedEncounter = FHIREncounterUtil.updateEncounterAttributes(omrsEncounter, retrievedEncounter);
 		try {
 			Context.getEncounterService().saveEncounter(retrievedEncounter);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			throw new UnprocessableEntityException(
 					"The request cannot be processed due to the following issues \n" + e.getMessage());
 		}
@@ -374,7 +374,8 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 		retrievedVisit = FHIRVisitUtil.updateVisitAttributes(visit, retrievedVisit);
 		try {
 			Context.getVisitService().saveVisit(retrievedVisit);
-		} catch (Exception e) {
+		}
+		catch (Exception e) {
 			throw new UnprocessableEntityException(
 					"The request cannot be processed due to the following issues \n" + e.getMessage());
 		}
@@ -382,16 +383,12 @@ public class EncounterStrategy implements GenericEncounterStrategy {
 	}
 
 	private Encounter createEncounter(Encounter encounter, String uuid) {
-		uuid = extractUuid(uuid);
-		if (encounter.getId() == null) { // since we need to PUT the encounter to a specific URI, we need to set the uuid
-			IdType uuidType = new IdType();
-			uuidType.setValue(uuid);
-			encounter.setId(uuidType);
-		}
+		StrategyUtil.setIdIfNeeded(encounter, extractUuid(uuid));
 		return createFHIREncounter(encounter);
 	}
 
-	private List<Encounter> addEncountersByPartOf(org.openmrs.Encounter encounter, String partOf, List<Encounter> fhirEncounterList) {
+	private List<Encounter> addEncountersByPartOf(org.openmrs.Encounter encounter, String partOf,
+			List<Encounter> fhirEncounterList) {
 		if (encounter.getVisit() == null) {
 			if (FHIRConstants.NONE.equalsIgnoreCase(partOf)) {
 				fhirEncounterList.add(FHIREncounterUtil.generateEncounter(encounter));

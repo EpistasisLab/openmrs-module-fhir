@@ -24,20 +24,15 @@ import ca.uhn.fhir.rest.api.MethodOutcome;
 import ca.uhn.fhir.rest.param.StringParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import ca.uhn.fhir.rest.server.IResourceProvider;
-import org.hl7.fhir.dstu3.model.CodeableConcept;
-import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.IdType;
-import org.hl7.fhir.dstu3.model.OperationOutcome;
 import org.hl7.fhir.dstu3.model.Practitioner;
 import org.hl7.fhir.dstu3.model.Resource;
-import org.openmrs.module.fhir.api.util.FHIRConstants;
 import org.openmrs.module.fhir.resources.FHIRPractitionerResource;
+import org.openmrs.module.fhir.util.MethodOutcomeBuilder;
 
 import java.util.List;
 
 public class RestfulPractitionerResourceProvider implements IResourceProvider {
-
-	;
 
 	private FHIRPractitionerResource practitionerResource;
 
@@ -55,14 +50,12 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 * operations should return a single resource instance.
 	 *
 	 * @param theId The read operation takes one parameter, which must be of type IdType and must be
-	 *            annotated with the "@Read.IdParam" annotation.
+	 *              annotated with the "@Read.IdParam" annotation.
 	 * @return Returns a resource matching this identifier, or null if none exists.
 	 */
-	@Read()
+	@Read
 	public Practitioner getResourceById(@IdParam IdType theId) {
-		Practitioner result = null;
-		result = practitionerResource.getByUniqueId(theId);
-		return result;
+		return practitionerResource.getByUniqueId(theId);
 	}
 
 	/**
@@ -70,8 +63,8 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 *
 	 * @param id object contaning the requested family name
 	 */
-	@Search()
-	public List<Practitioner> searchPractitionerByUniqueId(@RequiredParam(name = Practitioner.SP_RES_ID) TokenParam id) {
+	@Search
+	public List<Practitioner> findPractitionerByUniqueId(@RequiredParam(name = Practitioner.SP_RES_ID) TokenParam id) {
 		return practitionerResource.searchByUniqueId(id);
 	}
 
@@ -80,8 +73,9 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 *
 	 * @param theFamilyName object contaning the requested family name
 	 */
-	@Search()
-	public List<Practitioner> findPractitionersByFamilyName(@RequiredParam(name = Practitioner.SP_FAMILY) StringParam theFamilyName) {
+	@Search
+	public List<Practitioner> findPractitionersByFamilyName(
+			@RequiredParam(name = Practitioner.SP_FAMILY) StringParam theFamilyName) {
 		return practitionerResource.searchByFamilyName(theFamilyName);
 	}
 
@@ -90,9 +84,9 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 *
 	 * @param name name of the Practitioner
 	 * @return This method returns a list of Practitioners. This list may contain multiple matching
-	 *         resources, or it may also be empty.
+	 * resources, or it may also be empty.
 	 */
-	@Search()
+	@Search
 	public List<Practitioner> findPractitionersByName(@RequiredParam(name = Practitioner.SP_NAME) StringParam name) {
 		return practitionerResource.searchByName(name);
 	}
@@ -102,10 +96,11 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 *
 	 * @param identifier
 	 * @return This method returns a list of Practitioners. This list may contain multiple matching
-	 *         resources, or it may also be empty.
+	 * resources, or it may also be empty.
 	 */
-	@Search()
-	public List<Practitioner> searchPractitionersByIdentifier(@RequiredParam(name = Practitioner.SP_IDENTIFIER) TokenParam identifier) {
+	@Search
+	public List<Practitioner> findPractitionersByIdentifier(
+			@RequiredParam(name = Practitioner.SP_IDENTIFIER) TokenParam identifier) {
 		return practitionerResource.searchByIdentifier(identifier);
 	}
 
@@ -114,13 +109,14 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 *
 	 * @param givenName given name of the Practitioner
 	 * @return This method returns a list of Practitioners. This list may contain multiple matching
-	 *         resources, or it may also be empty.
+	 * resources, or it may also be empty.
 	 */
-	@Search()
-	public List<Practitioner> findPractitionersByGivenName(@RequiredParam(name = Practitioner.SP_GIVEN) StringParam givenName) {
+	@Search
+	public List<Practitioner> findPractitionersByGivenName(
+			@RequiredParam(name = Practitioner.SP_GIVEN) StringParam givenName) {
 		return practitionerResource.searchByGivenName(givenName);
 	}
-	
+
 	/**
 	 * Create Practitioner
 	 *
@@ -128,32 +124,17 @@ public class RestfulPractitionerResourceProvider implements IResourceProvider {
 	 */
 	@Create
 	public MethodOutcome createFHIRPractitioner(@ResourceParam Practitioner practitioner) {
-		practitioner = practitionerResource.createFHIRPractitioner(practitioner);
-		MethodOutcome retVal = new MethodOutcome();
-		retVal.setId(new IdType(FHIRConstants.PERSON, practitioner.getId()));
-		OperationOutcome outcome = new OperationOutcome();
-		CodeableConcept concept = new CodeableConcept();
-		Coding coding = concept.addCoding();
-		coding.setDisplay("Practitioner is successfully created with id " + practitioner.getId());
-		outcome.addIssue().setDetails(concept);
-		retVal.setOperationOutcome(outcome);
-		return retVal;
+		return MethodOutcomeBuilder.buildCreate(practitionerResource.createFHIRPractitioner(practitioner));
 	}
-	
+
 	@Update
 	public MethodOutcome updatePractitioner(@ResourceParam Practitioner practitioner, @IdParam IdType theId) {
-		MethodOutcome retVal = new MethodOutcome();
-		OperationOutcome outcome = new OperationOutcome();
-		CodeableConcept concept = new CodeableConcept();
-		Coding coding = concept.addCoding();
-		coding.setDisplay("Practitioner successfully updated" +  theId.getIdPart());
 		try {
-			practitioner = practitionerResource.updatePractitioner(practitioner, theId.getIdPart());
-		} catch (Exception e) {
-			coding.setDisplay("Following exception occured " + e.getMessage());
+			return MethodOutcomeBuilder
+					.buildUpdate(practitionerResource.updatePractitioner(practitioner, theId.getIdPart()));
 		}
-		outcome.addIssue().setDetails(concept);
-		retVal.setOperationOutcome(outcome);
-		return retVal;
+		catch (Exception e) {
+			return MethodOutcomeBuilder.buildCustom("Following exception occured " + e.getMessage());
+		}
 	}
 }

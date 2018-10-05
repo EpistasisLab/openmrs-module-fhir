@@ -28,18 +28,19 @@ import ca.uhn.fhir.rest.param.StringParam;
 import ca.uhn.fhir.rest.param.TokenParam;
 import ca.uhn.fhir.rest.server.IResourceProvider;
 import ca.uhn.fhir.rest.server.exceptions.PreconditionFailedException;
-import org.hl7.fhir.dstu3.model.CodeableConcept;
-import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.IdType;
-import org.hl7.fhir.dstu3.model.OperationOutcome;
 import org.hl7.fhir.dstu3.model.Person;
 import org.hl7.fhir.dstu3.model.Resource;
-import org.openmrs.module.fhir.api.util.FHIRConstants;
 import org.openmrs.module.fhir.resources.FHIRPersonResource;
+import org.openmrs.module.fhir.util.MethodOutcomeBuilder;
 
 import java.util.List;
 
 public class RestfulPersonResourceProvider implements IResourceProvider {
+
+	private static final String ERROR_MESSAGE = "No Person is associated with the given UUID to update."
+			+ " Please make sure you have set at lease one non-delete name, Gender and Birthdate to create a new "
+			+ "Person with the given UUID";
 
 	private FHIRPersonResource personResource;
 
@@ -60,7 +61,7 @@ public class RestfulPersonResourceProvider implements IResourceProvider {
 	 *              annotated with the "@Read.IdParam" annotation.
 	 * @return Returns a resource matching this identifier, or null if none exists.
 	 */
-	@Read()
+	@Read
 	public Person getResourceById(@IdParam IdType theId) {
 		return personResource.getByUniqueId(theId);
 	}
@@ -70,8 +71,8 @@ public class RestfulPersonResourceProvider implements IResourceProvider {
 	 *
 	 * @param id object containing the requested person
 	 */
-	@Search()
-	public List<Person> searchPractitionerByUniqueId(@RequiredParam(name = Person.SP_RES_ID) TokenParam id) {
+	@Search
+	public List<Person> findPractitionerByUniqueId(@RequiredParam(name = Person.SP_RES_ID) TokenParam id) {
 		return personResource.searchByUniqueId(id);
 	}
 
@@ -84,10 +85,10 @@ public class RestfulPersonResourceProvider implements IResourceProvider {
 	 * @return This method returns a list of Persons. This list may contain multiple matching
 	 * resources, or it may also be empty.
 	 */
-	@Search()
+	@Search
 	public List<Person> findPersons(@RequiredParam(name = Person.SP_NAME) StringParam name,
-	                                 @RequiredParam(name = Person.SP_BIRTHDATE) DateParam birthDate,
-	                                 @RequiredParam(name = Person.SP_GENDER) StringParam gender) {
+			@RequiredParam(name = Person.SP_BIRTHDATE) DateParam birthDate,
+			@RequiredParam(name = Person.SP_GENDER) StringParam gender) {
 		Integer birthYear = 1900 + birthDate.getValue().getYear(); // e.g. 2011-01-02
 		return personResource.searchPersons(name.getValue(), birthYear, gender);
 	}
@@ -99,7 +100,7 @@ public class RestfulPersonResourceProvider implements IResourceProvider {
 	 * @return This method returns a list of Persons. This list may contain multiple matching
 	 * resources, or it may also be empty.
 	 */
-	@Search()
+	@Search
 	public List<Person> findPersonsByName(@RequiredParam(name = Person.SP_NAME) StringParam name) {
 		return personResource.searchByName(name);
 	}
@@ -113,42 +114,17 @@ public class RestfulPersonResourceProvider implements IResourceProvider {
 	 */
 	@Create
 	public MethodOutcome createFHIRPerson(@ResourceParam Person person) {
-		person = personResource.createFHIRPerson(person);
-		MethodOutcome retVal = new MethodOutcome();
-		retVal.setId(new IdType(FHIRConstants.PERSON, person.getId()));
-		OperationOutcome outcome = new OperationOutcome();
-		CodeableConcept concept = new CodeableConcept();
-		Coding coding = concept.addCoding();
-		coding.setDisplay("Person is successfully created with id " + person.getId());
-		outcome.addIssue().setDetails(concept);
-		retVal.setOperationOutcome(outcome);
-		return retVal;
+		return MethodOutcomeBuilder.buildCreate(personResource.createFHIRPerson(person));
 	}
 
 	@Update
 	public MethodOutcome updatePersonConditional(@ResourceParam Person thePerson, @IdParam IdType theId) {
-		MethodOutcome retVal = new MethodOutcome();
-		OperationOutcome outcome = new OperationOutcome();
 		try {
-			 thePerson = personResource.updateFHIRPerson(thePerson, theId.getIdPart());
-		} catch (Exception e) {
-			CodeableConcept concept = new CodeableConcept();
-			Coding coding = concept.addCoding();
-			coding.setDisplay(
-					"No Person is associated with the given UUID to update. Please"
-							+ " make sure you have set at lease one non-delete name, Gender and Birthdate to create a new "
-							+ "Person with the given UUID");
-			outcome.addIssue()
-					.setDetails(concept);
-			retVal.setOperationOutcome(outcome);
-			return retVal;
+			return MethodOutcomeBuilder.buildUpdate(personResource.updateFHIRPerson(thePerson, theId.getIdPart()));
 		}
-		CodeableConcept concept = new CodeableConcept();
-		Coding coding = concept.addCoding();
-		coding.setDisplay("Person is successfully updated with id " + thePerson.getId());
-		outcome.addIssue().setDetails(concept);
-		retVal.setOperationOutcome(outcome);
-		return retVal;
+		catch (Exception e) {
+			return MethodOutcomeBuilder.buildCustom(ERROR_MESSAGE);
+		}
 	}
 
 	/**
@@ -156,44 +132,38 @@ public class RestfulPersonResourceProvider implements IResourceProvider {
 	 *
 	 * @param theId object containing the id
 	 */
-	@Delete()
+	@Delete
 	public void deletePerson(@IdParam IdType theId) {
 		personResource.deletePerson(theId);
 	}
-	
+
 	/**
 	 * Update Person by name.
 	 *
-	 * @param person {@link ca.uhn.fhir.model.dstu2.resource.Person} object provided by the
-	 *            {@link ca.uhn.fhir .rest.server.RestfulServer}
-	 * @param theId Only one of theId or theConditional will have a value and the other will be
-	 *            null, depending on the URL passed into the server
+	 * @param person         {@link ca.uhn.fhir.model.dstu2.resource.Person} object provided by the
+	 *                       {@link ca.uhn.fhir .rest.server.RestfulServer}
+	 * @param theId          Only one of theId or theConditional will have a value and the other will be
+	 *                       null, depending on the URL passed into the server
 	 * @param theConditional This will have a value like "Person?name=John
 	 * @return MethodOutcome which contains the status of the operation
 	 */
-	@Update()
+	@Update
 	public MethodOutcome updatePersonByName(@ResourceParam Person person, @IdParam IdType theId,
-	                                        @ConditionalUrlParam String theConditional) {
-		MethodOutcome methodOutcome = new MethodOutcome();
-		String name = null;
+			@ConditionalUrlParam String theConditional) {
 		if (theConditional != null) {
 			int startIndex = theConditional.lastIndexOf('=');
-			name = theConditional.substring(startIndex + 1);
-			List<Person> personList = personResource.searchPersons(name, null, null);
-			if (personList != null) {
-				if (personList.size() == 0) {
-					methodOutcome = updatePersonConditional(person, null);
-				} else if (personList.size() == 1) {
-					IdType id = new IdType();
-					id.setValue(personList.get(0).getId());
-					methodOutcome = updatePersonConditional(person, id);
-				} else {
-					throw new PreconditionFailedException("There are more than one person for the given name");
-				}
+			List<Person> personList = personResource.searchPersons(theConditional.substring(startIndex + 1), null, null);
+			if (personList.isEmpty()) {
+				return updatePersonConditional(person, null);
+			} else if (personList.size() == 1) {
+				IdType id = new IdType();
+				id.setValue(personList.get(0).getId());
+				return updatePersonConditional(person, id);
+			} else {
+				throw new PreconditionFailedException("There are more than one person for the given name");
 			}
 		} else {
-			methodOutcome = updatePersonConditional(person, theId);
+			return updatePersonConditional(person, theId);
 		}
-		return methodOutcome;
 	}
 }
