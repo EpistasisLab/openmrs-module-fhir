@@ -194,9 +194,6 @@ public class ObservationStrategy implements GenericObservationStrategy {
             }
             throw new UnprocessableEntityException(errorMessage.toString());
         }
-        
-        
-        
         int numRelated = observation.getRelated().size();
         Set<Obs> relObs = new HashSet<Obs>();
         for (int i = 0; i < numRelated; i++) {
@@ -204,19 +201,14 @@ public class ObservationStrategy implements GenericObservationStrategy {
             String ref_uuid = FHIRUtils.extractUuid(relRef);
             Obs related_obs = Context.getObsService().getObsByUuid(ref_uuid);
             if (related_obs != null) {
-            	//obs.addGroupMember(related_obs);
                 relObs.add(related_obs);
             }
         }
-        //obs = Context.getObsService().saveObs(obs, FHIRConstants.FHIR_CREATE_MESSAGE);
+
         for (Obs related_obs : relObs) {
-        System.out.println("related_obs");
             obs.addGroupMember(related_obs);
         }
-        obs = Context.getObsService().saveObs(obs, FHIRConstants.FHIR_CREATE_MESSAGE);
-        
-        
-     
+        obs = Context.getObsService().saveObs(obs, FHIRConstants.FHIR_CREATE_MESSAGE); 
         return FHIRObsUtil.generateObs(obs);
     }
 

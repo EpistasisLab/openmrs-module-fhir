@@ -26,7 +26,9 @@ import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.SimpleQuantity;
 import org.hl7.fhir.dstu3.model.StringType;
+import org.hl7.fhir.exceptions.FHIRException;
 import org.openmrs.Concept;
+import org.openmrs.ConceptAnswer;
 import org.openmrs.ConceptMap;
 import org.openmrs.ConceptNumeric;
 import org.openmrs.Encounter;
@@ -308,6 +310,11 @@ public class FHIRObsUtil {
 			log.error("Code cannot be empty " + e.getMessage());
 		}
 		
+		
+
+			
+
+		
 		for (Coding cding : dts) {
 			conceptCode = cding.getCode();
 			system = cding.getSystem();
@@ -328,6 +335,9 @@ public class FHIRObsUtil {
 		} else {
 			obs.setConcept(concept);
 		}
+		
+		
+		
 
 		if (concept != null) {
 			if (observation.getValue() == null) {
@@ -372,6 +382,34 @@ public class FHIRObsUtil {
 					ComplexData data = new ComplexData("images.JPEG", byteStream);
 					obs.setValueComplex(byteStream.toString());
 					obs.setComplexData(data);
+				} else if (FHIRConstants.CWE_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
+					CodeableConcept valueCodeableConceptDt;
+					try {
+						valueCodeableConceptDt = observation.getValueCodeableConcept();
+						String valueConceptCode = null;
+						String valueSystem = null;
+						Concept valueConcept = null;
+						try {
+							List<Coding> vcodingDts = valueCodeableConceptDt.getCoding();
+							Coding codingDt3 = vcodingDts.get(0);
+							valueConceptCode = codingDt3.getCode();
+							valueSystem = codingDt3.getSystem();
+							if (FHIRConstants.OPENMRS_URI.equals(valueSystem)) {
+								valueConcept = Context.getConceptService().getConceptByUuid(valueConceptCode);
+							    obs.setValueCoded(valueConcept);
+							
+							}
+						}
+						catch (NullPointerException e) {
+							errors.add("Setting valueConcept failed");
+							log.error("Setting valueConcept failed " + e.getMessage());
+						}
+						
+						
+					} catch (FHIRException e1) {
+						errors.add("Setting Codeable Concept failed");
+						log.error("Setting Codeable Concept failed " + e1.getMessage());
+					}
 				}
 			}
 		}
