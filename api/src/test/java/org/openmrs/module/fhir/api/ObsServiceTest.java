@@ -31,6 +31,7 @@ import org.openmrs.Obs.Status;
 import org.openmrs.Person;
 import org.openmrs.api.ConceptService;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.fhir.api.util.FHIRConstants;
 import org.openmrs.module.fhir.api.util.FHIRObsUtil;
 import org.openmrs.test.BaseModuleContextSensitiveTest;
 
@@ -208,26 +209,39 @@ public class ObsServiceTest extends BaseModuleContextSensitiveTest {
 		assertEquals(Interpretation.CRITICALLY_LOW, obs.getInterpretation());
 	}
 
-       @Test
-       public void generateOpenMRSObsGroup_shouldGenerateOpenMRSObsGroup() {
+    @Test
+    public void generateOpenMRSObsRelated_shouldGenerateOpenMRSObsRelated() {
+    	String obsUuid1 = "be3a4d7a-f9ab-47bb-aaad-bc0b452fcda4";
+        String obsUuid2 = "b5499df2-b17c-4b39-88a6-44591c165569";
+        Observation fhirObservation1 = getService().getObs(obsUuid1);
+        Observation fhirObservation2 = getService().getObs(obsUuid2);
+		List<Observation.ObservationRelatedComponent> relatedObs = new ArrayList<>();
+	    Observation.ObservationRelatedComponent related = new Observation.ObservationRelatedComponent();
+		related.setType(Observation.ObservationRelationshipType.HASMEMBER);
+		related.setTargetTarget(fhirObservation2);
+		relatedObs.add(related);
+		fhirObservation1.setRelated(relatedObs);
+        Encounter encounter = Context.getEncounterService().getEncounter(3);
+        Obs obs = FHIRObsUtil.generateOpenMRSObs(fhirObservation1,new ArrayList<String>());
+        assertNotNull(obs);
+        assertNotNull(obs.getRelatedObservations());
+    }
 
-               String obsUuid1 = "be3a4d7a-f9ab-47bb-aaad-bc0b452fcda4";
-               String obsUuid2 = "b5499df2-b17c-4b39-88a6-44591c165569";
-               Observation fhirObservation1 = getService().getObs(obsUuid1);
-               Observation fhirObservation2 = getService().getObs(obsUuid2);
-               fhirObservation1.setStatus(Observation.ObservationStatus.AMENDED);
-               
-               CodeableConcept interpretation = new CodeableConcept();
-               interpretation.setText("CRITICALLY_LOW");
-               fhirObservation1.setInterpretation(interpretation);
-               
-               Encounter encounter = Context.getEncounterService().getEncounter(3);
-               Obs obs = FHIRObsUtil.generateOpenMRSObsWithEncounter(fhirObservation1, encounter, new ArrayList<String>());
-               assertNotNull(obs);
-               assertNotNull(obs.getEncounter());
-               assertEquals(Status.AMENDED, obs.getStatus());
-               assertEquals(Interpretation.CRITICALLY_LOW, obs.getInterpretation());
-       }
+    @Test
+    public void generateOpenMRSObsComponent_shouldGenerateOpenMRSObsComponent() {
+    	String obsUuid1 = "be3a4d7a-f9ab-47bb-aaad-bc0b452fcda4";
+        String obsUuid2 = "b5499df2-b17c-4b39-88a6-44591c165569";
+        Observation fhirObservation1 = getService().getObs(obsUuid1);
+        Observation fhirObservation2 = getService().getObs(obsUuid2);
+		List<Observation.ObservationComponentComponent> componentObs = new ArrayList<>();
+	    Observation.ObservationComponentComponent component = new Observation.ObservationComponentComponent();
+	    component.setValue(null);
+	    fhirObservation1.setComponent(componentObs);
+        Encounter encounter = Context.getEncounterService().getEncounter(3);
+        Obs obs = FHIRObsUtil.generateOpenMRSObs(fhirObservation1,new ArrayList<String>());
+        assertNotNull(obs);
+        assertNotNull(obs.getRelatedObservations());
+    }
 
 
 
