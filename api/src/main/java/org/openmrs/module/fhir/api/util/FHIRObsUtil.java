@@ -259,8 +259,8 @@ public class FHIRObsUtil {
 		Obs obs = new Obs();
 		obs.setComment(observation.getComment());
 		if (observation.getSubject() != null) {
-			Reference subjectref = observation.getSubject();
-			String patientUuid = subjectref.getId();
+			String subjectref = observation.getSubject().getReference();
+			String patientUuid = FHIRUtils.extractUuid(subjectref);
 			org.openmrs.Person person = Context.getPersonService().getPersonByUuid(patientUuid);
 			if (person == null) {
 				errors.add("There is no person for the given uuid");
@@ -282,19 +282,19 @@ public class FHIRObsUtil {
 		if (observation.getEffective() instanceof DateTimeType) {
 			dateEffective = ((DateTimeType) observation.getEffective()).getValue();
 			if (dateEffective == null) {
-				errors.add("Observation DateTime cannot be empty");
+				errors.add("Observation DateTime cannot be empty 1");
 			} else {
 				obs.setObsDatetime(dateEffective);
 			}
 		} else if (observation.getEffective() instanceof Period) {
 			dateEffective = ((Period) observation.getEffective()).getStart();
 			if (dateEffective == null) {
-				errors.add("Observation DateTime cannot be empty");
+				errors.add("Observation DateTime cannot be empty 2");
 			} else {
 				obs.setObsDatetime(dateEffective);
 			}
 		} else {
-			errors.add("Observation DateTime cannot be empty");
+			errors.add("Observation DateTime cannot be empty 3");
 		}
 
 		Concept concept = null;

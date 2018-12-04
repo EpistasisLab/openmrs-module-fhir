@@ -442,6 +442,12 @@
 										</key>
 										<bean class="org.openmrs.module.fhir.api.diagnosticreport.handler.RadiologyHandler"/>
 									</entry>
+									<entry>
+										<key>
+											<value>MicrobiologyHandler</value>
+										</key>
+										<bean class="org.openmrs.module.fhir.api.diagnosticreport.handler.MicrobiologyHandler"/>
+									</entry>
 								</map>
 							</property>
 						</bean>
