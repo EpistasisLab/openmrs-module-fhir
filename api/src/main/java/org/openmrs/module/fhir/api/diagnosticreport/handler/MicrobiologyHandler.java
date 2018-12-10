@@ -13,6 +13,7 @@ import org.hl7.fhir.dstu3.model.DiagnosticReport;
 import org.hl7.fhir.dstu3.model.IdType;
 import org.hl7.fhir.dstu3.model.ImagingStudy;
 import org.hl7.fhir.dstu3.model.Observation;
+import org.hl7.fhir.dstu3.model.Observation.ObservationRelatedComponent;
 import org.hl7.fhir.dstu3.model.Patient;
 import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Resource;
@@ -123,8 +124,6 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 		ObsService obsService = Context.getObsService();
 		Encounter omrsDiagnosticReport = new Encounter();
 		Visit visit = null;
-		// Set `Name` as a Obs
-		// Set `Status` as a Obs
 
 		// @require: Set `Issued` date as EncounterDateTime
 		omrsDiagnosticReport.setEncounterDatetime(diagnosticReport.getIssued());
@@ -148,9 +147,6 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 		omrsDiagnosticReport.setEncounterType(FHIRUtils.getEncounterType(encounterType));
 		omrsDiagnosticReport.setVisit(visit);
 
-		// Set `Diagnosis[x]->DateTime` as valueDateTime in an Obs
-		// Set `Diagnosis[x]->Period` as valueDateTime in an Obs
-
 		/**
 		 * Create resource in OpenMRS Database RATIONALE: Due to encounter.setObs(obsList) method is
 		 * not working properly and need to set encounter for the Obs before create them to link
@@ -170,39 +166,74 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 
 			if (!referenceDt.getReference().isEmpty()) {
 				observation = (Observation) referenceDt.getResource();
-				System.out.println(observation.toString());
-				
-				System.out.println(observation.getValue().toString());
 				observation.setSubject(subjectReference);
-				System.out.println("ref");
-				System.out.println(observation.getSubject().getReference());
 			} else {
 				// Get Id of the Observation
 				String observationID = referenceDt.getId();
+				
 				if (StringUtils.isEmpty(observationID)) {
 					// Assume that the given Observation is stored in the OpenMRS database
 					observation = Context.getService(org.openmrs.module.fhir.api.ObsService.class).getObs(observationID);
 				} else {
 					String observationReference = referenceDt.getReference();
+					System.out.println("observationID");
+					System.out.println(observationID);
 					if (!StringUtils.isEmpty(observationReference) && "/".contains(observationReference)) {
 						observationID = observationReference.split("/")[1];
 						observation = Context.getService(org.openmrs.module.fhir.api.ObsService.class).getObs(observationID);
 					}
 				}
 			}
-			
+			 int numOrg = observation.getRelated().size();
+             Set<Obs> orgObs = new HashSet<Obs>();
+             for (int i = 0; i < numOrg; i++) {
+                 String orgRef = observation.getRelated().get(i).getTarget().getReference();
+                 System.out.println(orgRef);
+                 Observation org_observation = null;
+                 org_observation = (Observation) observation.getRelated().get(i).getTarget().getResource();
+                 int numAgent = org_observation.getRelated().size();
+                 Set<Obs> agentObs = new HashSet<Obs>();
+                 Set<Observation> agent_observations = new HashSet<Observation>();
+                 for (int j = 0; j < numAgent; j++) {
+                	 Observation agent_observation = null;
+                	 agent_observation = (Observation) org_observation.getRelated().get(j).getTarget().getResource();
+                	 //System.out.println(agent_observation.getIssued());
+                	 //agent_observation = prepareForGenerateOpenMRSObs(agent_observation, diagnosticReport);
+                	 //System.out.println(agent_observation.getIssued());
+                	 //Obs obs = FHIRObsUtil.generateOpenMRSObs(agent_observation, errors);
+                	 //obs = Context.getObsService().saveObs(obs, null);
+                     //agentObs.add(obs);
+                	 agent_observation.setSubject(diagnosticReport.getSubject());
+                 	 Obs aObs = FHIRObsUtil.generateOpenMRSObs(agent_observation, errors);
+                 	 aObs.setObsDatetime(diagnosticReport.getIssued());
 
-			// System.out.println(observation.VALUE_STRING);
-		//	System.out.println(observation.getValueStringType());
-			Obs obs = FHIRObsUtil.generateOpenMRSObs(prepareForGenerateOpenMRSObs(observation, diagnosticReport), errors);
-		//	Obs obs = FHIRObsUtil.generateOpenMRSObs(observation, errors);
-			if (errors.isEmpty()) {
-				obs = obsService.saveObs(obs, null);
-				resultObsGroupMembersSet.add(obs);
-			} else {
-				String errorMessage = ErrorUtil.generateErrorMessage(errors, FHIRConstants.REQUEST_ISSUE_LIST);
-				throw new UnprocessableEntityException(errorMessage);
-			}
+                 	 aObs = Context.getObsService().saveObs(aObs, null);
+                 	 agentObs.add(aObs);
+                	 //agent_observations.add(agent_observation);
+                     Obs resultObsGroup = getObsGroup(diagnosticReport, omrsPatient, omrsEncounter, agentObs,
+                            FHIRUtils.getDiagnosticReportResultConcept());
+                     //Context.getObsService().saveObs(resultObsGroup, null);
+                	 //System.out.println(agent_observation.getValue()); 
+                 }
+                 //for (Observation aobs: agent_observations) {
+                //	Obs obsi = FHIRObsUtil.generateOpenMRSObs(aobs, errors);
+                //	obsi.setObsDatetime(diagnosticReport.getIssued());
+                //	System.out.println(obsi.getObsDatetime());
+                // }
+                 //Obs related_obs = FHIRObsUtil.generateOpenMRSObs(prepareForGenerateOpenMRSObs(org_observation, diagnosticReport), errors);
+             }
+
+	
+			//Obs obs = FHIRObsUtil.generateOpenMRSObs(prepareForGenerateOpenMRSObs(observation, diagnosticReport), errors);
+			//if (errors.isEmpty()) {
+			//	obs = obsService.saveObs(obs, null);
+			//	resultObsGroupMembersSet.add(obs);
+			//} else {
+			//	String errorMessage = ErrorUtil.generateErrorMessage(errors, FHIRConstants.REQUEST_ISSUE_LIST);
+			//	throw new UnprocessableEntityException(errorMessage);
+			//}
+			
+		
 		}
 		if (!resultObsGroupMembersSet.isEmpty()) {
             System.out.println("notempty");
@@ -215,7 +246,9 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 		/****************************** Set `ImagingStudy` as a set of Obs *********************************/
 		Set<Obs> imagingStudyObsGroupMembersSet = new HashSet<>();
 		// Iterate through 'ImagingStudy', convert to the OpenMRS Obs group
+		
 		for (Reference referenceDt : diagnosticReport.getImagingStudy()) {
+
 			Obs obs;
 			if (!referenceDt.getReference().isEmpty()) {
 				List<String> errors = new ArrayList<>();
