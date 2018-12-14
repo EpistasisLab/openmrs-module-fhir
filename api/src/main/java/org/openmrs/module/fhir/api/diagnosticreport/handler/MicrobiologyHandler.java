@@ -8,6 +8,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.Bundle;
+import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.DiagnosticReport;
 import org.hl7.fhir.dstu3.model.IdType;
@@ -17,9 +18,11 @@ import org.hl7.fhir.dstu3.model.Observation.ObservationRelatedComponent;
 import org.hl7.fhir.dstu3.model.Patient;
 import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Resource;
+import org.openmrs.Concept;
 import org.openmrs.Encounter;
 import org.openmrs.Obs;
 import org.openmrs.Visit;
+import org.openmrs.Obs.Interpretation;
 import org.openmrs.api.EncounterService;
 import org.openmrs.api.ObsService;
 import org.openmrs.api.context.Context;
@@ -105,7 +108,8 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 
 		// Separate Obs into different field based on Concept Id
 		Map<String, Set<Obs>> obsSetsMap = separateObs(omrsDiagnosticReport.getObsAtTopLevel(false), true);
-
+		//System.out.println("count");
+		//System.out.println(obsSetsMap.size());
 		// Set ID
 		diagnosticReport.setId(new IdType(FHIRConstants.DIAGNOSTIC_REPORT, omrsDiagnosticReport.getUuid()));
 
@@ -157,20 +161,21 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 		/****************************** Set `Result` field *************************************************/
 		// Set parsed obsSet (`Result` as Set of Obs)
 		Set<Obs> resultObsGroupMembersSet = new HashSet<>();
+		Obs resultObsGroup = new Obs(Context.getPersonService().getPersonByUuid(omrsPatient.getUuid()),
+				FHIRUtils.getDiagnosticReportResultConcept(),
+				diagnosticReport.getIssued(), null);
+		resultObsGroup.setEncounter(omrsEncounter);
+		obsService.saveObs(resultObsGroup, null);
 		// Iterate through 'result' Observations and adding to the OpenMRS Obs group
-		
 		for (Reference referenceDt : diagnosticReport.getResult()) {
 			List<String> errors = new ArrayList<>();
 			Observation observation = null;
-
-
 			if (!referenceDt.getReference().isEmpty()) {
 				observation = (Observation) referenceDt.getResource();
 				observation.setSubject(subjectReference);
 			} else {
 				// Get Id of the Observation
 				String observationID = referenceDt.getId();
-				
 				if (StringUtils.isEmpty(observationID)) {
 					// Assume that the given Observation is stored in the OpenMRS database
 					observation = Context.getService(org.openmrs.module.fhir.api.ObsService.class).getObs(observationID);
@@ -184,69 +189,43 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 					}
 				}
 			}
-			 int numOrg = observation.getRelated().size();
-             Set<Obs> orgObs = new HashSet<Obs>();
-             for (int i = 0; i < numOrg; i++) {
+			observation.setSubject(diagnosticReport.getSubject());
+			Obs obs = FHIRObsUtil.generateOpenMRSObs(observation, errors);
+			obs.setObsDatetime(diagnosticReport.getIssued());
+			obs.setObsGroup(resultObsGroup);
+			obs = obsService.saveObs(obs, null);
+			int numOrg = observation.getRelated().size();
+            Set<Obs> orgObs = new HashSet<Obs>();
+            for (int i = 0; i < numOrg; i++) {
                  String orgRef = observation.getRelated().get(i).getTarget().getReference();
                  System.out.println(orgRef);
                  Observation org_observation = null;
                  org_observation = (Observation) observation.getRelated().get(i).getTarget().getResource();
+                 org_observation.setSubject(diagnosticReport.getSubject());
                  int numAgent = org_observation.getRelated().size();
                  Set<Obs> agentObs = new HashSet<Obs>();
-                 Set<Observation> agent_observations = new HashSet<Observation>();
+                 Obs oObs = FHIRObsUtil.generateOpenMRSObs(org_observation, errors);
+                 oObs.setObsDatetime(diagnosticReport.getIssued());
+                 oObs.setObsGroup(obs);
+                 Context.getObsService().saveObs(oObs,null);
                  for (int j = 0; j < numAgent; j++) {
                 	 Observation agent_observation = null;
                 	 agent_observation = (Observation) org_observation.getRelated().get(j).getTarget().getResource();
-                	 //System.out.println(agent_observation.getIssued());
-                	 //agent_observation = prepareForGenerateOpenMRSObs(agent_observation, diagnosticReport);
-                	 //System.out.println(agent_observation.getIssued());
-                	 //Obs obs = FHIRObsUtil.generateOpenMRSObs(agent_observation, errors);
-                	 //obs = Context.getObsService().saveObs(obs, null);
-                     //agentObs.add(obs);
                 	 agent_observation.setSubject(diagnosticReport.getSubject());
                  	 Obs aObs = FHIRObsUtil.generateOpenMRSObs(agent_observation, errors);
                  	 aObs.setObsDatetime(diagnosticReport.getIssued());
-
-                 	 aObs = Context.getObsService().saveObs(aObs, null);
-                 	 agentObs.add(aObs);
-                	 //agent_observations.add(agent_observation);
-                     Obs resultObsGroup = getObsGroup(diagnosticReport, omrsPatient, omrsEncounter, agentObs,
-                            FHIRUtils.getDiagnosticReportResultConcept());
-                     //Context.getObsService().saveObs(resultObsGroup, null);
-                	 //System.out.println(agent_observation.getValue()); 
+                 	 if (aObs.getInterpretation() == null) {
+                 		aObs.setInterpretation(convertInterpretation(agent_observation));
+                 	 }
+                 	 aObs.setObsGroup(oObs);
+                 	 Context.getObsService().saveObs(aObs, null);
                  }
-                 //for (Observation aobs: agent_observations) {
-                //	Obs obsi = FHIRObsUtil.generateOpenMRSObs(aobs, errors);
-                //	obsi.setObsDatetime(diagnosticReport.getIssued());
-                //	System.out.println(obsi.getObsDatetime());
-                // }
-                 //Obs related_obs = FHIRObsUtil.generateOpenMRSObs(prepareForGenerateOpenMRSObs(org_observation, diagnosticReport), errors);
+                 oObs.setObsGroup(obs);
              }
-
-	
-			//Obs obs = FHIRObsUtil.generateOpenMRSObs(prepareForGenerateOpenMRSObs(observation, diagnosticReport), errors);
-			//if (errors.isEmpty()) {
-			//	obs = obsService.saveObs(obs, null);
-			//	resultObsGroupMembersSet.add(obs);
-			//} else {
-			//	String errorMessage = ErrorUtil.generateErrorMessage(errors, FHIRConstants.REQUEST_ISSUE_LIST);
-			//	throw new UnprocessableEntityException(errorMessage);
-			//}
-			
-		
 		}
-		if (!resultObsGroupMembersSet.isEmpty()) {
-            System.out.println("notempty");
-			Obs resultObsGroup = getObsGroup(diagnosticReport, omrsPatient, omrsEncounter, resultObsGroupMembersSet,
-					FHIRUtils.getDiagnosticReportResultConcept());
-
-			obsService.saveObs(resultObsGroup, "mbworkaround");
-		} //-- END of set `result`
 
 		/****************************** Set `ImagingStudy` as a set of Obs *********************************/
 		Set<Obs> imagingStudyObsGroupMembersSet = new HashSet<>();
-		// Iterate through 'ImagingStudy', convert to the OpenMRS Obs group
-		
 		for (Reference referenceDt : diagnosticReport.getImagingStudy()) {
 
 			Obs obs;
@@ -333,6 +312,31 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 			return imagingStudyObs;
 		}
 	}
+	
+	private Interpretation convertInterpretation(Observation observation) {
+	CodeableConcept obs_interpretation = observation.getInterpretation();
+    List<Coding> codingDts = obs_interpretation.getCoding();
+    Coding codingDt = codingDts.get(0);
+    String valueConceptCode = null;
+    String valueSystem = null;
+    Interpretation interpretation = null;
+    valueConceptCode = codingDt.getCode();
+    valueSystem = codingDt.getSystem();
+	if (valueSystem.equals("http://hl7.org/fhir/v2/0078")) {
+		if(valueConceptCode.equals("R")) {
+            interpretation =  Interpretation.RESISTANT;
+		}
+		if(valueConceptCode.equals("I")) {
+			interpretation =  Interpretation.INTERMEDIATE;
+		}
+		if(valueConceptCode.equals("S")) {
+		    interpretation = Interpretation.SUSCEPTIBLE;
+		}
+	}
+	return interpretation;
+	}
+	
+	 
 
 	@Override
 	public DiagnosticReport updateFHIRDiagnosticReport(DiagnosticReport diagnosticReport, String theId) {
