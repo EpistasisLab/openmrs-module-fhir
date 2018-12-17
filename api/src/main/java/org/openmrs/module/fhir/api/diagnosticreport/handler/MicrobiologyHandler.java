@@ -20,7 +20,9 @@ import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.Resource;
 import org.openmrs.Concept;
 import org.openmrs.Encounter;
+import org.openmrs.EncounterRole;
 import org.openmrs.Obs;
+import org.openmrs.Provider;
 import org.openmrs.Visit;
 import org.openmrs.Obs.Interpretation;
 import org.openmrs.api.EncounterService;
@@ -31,6 +33,7 @@ import org.openmrs.module.fhir.api.util.ErrorUtil;
 import org.openmrs.module.fhir.api.util.FHIRConstants;
 import org.openmrs.module.fhir.api.util.FHIRImagingStudyUtil;
 import org.openmrs.module.fhir.api.util.FHIRObsUtil;
+import org.openmrs.module.fhir.api.util.FHIRPatientUtil;
 import org.openmrs.module.fhir.api.util.FHIRRESTfulGenericClient;
 import org.openmrs.module.fhir.api.util.FHIRUtils;
 
@@ -336,7 +339,84 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 	return interpretation;
 	}
 	
-	 
+
+	@Override 
+	protected DiagnosticReport generateDiagnosticReport(DiagnosticReport diagnosticReport, Encounter omrsDiagnosticReport,
+			Map<String, Set<Obs>> obsSetsMap) {
+		// @required: Get EncounterDateTime and set as `Issued` date
+		diagnosticReport.setIssued(omrsDiagnosticReport.getEncounterDatetime());
+
+		// @required: Get Encounter Patient and set as `Subject`
+		org.openmrs.Patient omrsPatient = omrsDiagnosticReport.getPatient();
+		diagnosticReport.getSubject().setResource(FHIRPatientUtil.generatePatient(omrsPatient));
+
+		// Get Encounter Provider and set as `Performer`
+		EncounterRole omrsEncounterRole = FHIRUtils.getEncounterRole();
+		Set<Provider> omrsProviderList = omrsDiagnosticReport.getProvidersByRole(omrsEncounterRole);
+		// If at least one provider is set (1..1 mapping in FHIR Diagnostic Report)
+		if (!omrsProviderList.isEmpty()) {
+			//Role name to a getCodingList display. Is that correct?
+			for (Provider practitioner : omrsProviderList) {
+				CodeableConcept roleConcept = new CodeableConcept();
+				Coding role = new Coding();
+				role.setDisplay(omrsEncounterRole.getName());
+				roleConcept.addCoding(role);
+				Reference practitionerReference = FHIRUtils.buildPractitionerReference(practitioner);
+				DiagnosticReport.DiagnosticReportPerformerComponent performer = diagnosticReport.addPerformer();
+				performer.setRole(roleConcept);
+				performer.setActor(practitionerReference);
+			}
+		}
+
+		// Get EncounterType and Set `ServiceCategory`
+		String serviceCategory = omrsDiagnosticReport.getEncounterType().getName();
+		List<Coding> serviceCategoryList = new ArrayList<>();
+		serviceCategoryList.add(new Coding(FHIRConstants.CODING_0074, serviceCategory, serviceCategory));
+		diagnosticReport.getCategory().setCoding(serviceCategoryList);
+
+		// Get valueDateTime in Obs and Set `Diagnosis[x]->DateTime`
+		// Get valueDateTime in Obs and Set `Diagnosis[x]->Period`
+
+		// ObsSet set as `Result`
+		List<Reference> resultReferenceDtList = new ArrayList<>();
+		List<Resource> containedResourceList = new ArrayList<>();
+		for (Obs resultObs : obsSetsMap.get(FHIRConstants.DIAGNOSTIC_REPORT_RESULT)) {
+			
+			for (Obs obs : resultObs.getGroupMembers())
+			{
+				Observation observation = FHIRObsUtil.generateObs(obs);
+				observation.setId(new IdType());
+				
+				List<Observation.ObservationRelatedComponent> relObs = new ArrayList<>();
+				for (Obs oobs : obs.getGroupMembers()) {
+					List<Observation.ObservationRelatedComponent> arelObs = new ArrayList<>();
+					for (Obs bobs : oobs.getGroupMembers()) {
+						Observation aobservation = FHIRObsUtil.generateObs(bobs);
+						aobservation.setId(new IdType());
+						Observation.ObservationRelatedComponent aorc = new ObservationRelatedComponent();
+						aorc.setTarget(new Reference(aobservation));
+						arelObs.add(aorc);
+					}
+					
+					Observation oobservation = FHIRObsUtil.generateObs(oobs);
+					oobservation.setId(new IdType());
+					oobservation.setRelated(arelObs);
+					Observation.ObservationRelatedComponent oorc = new ObservationRelatedComponent();
+					oorc.setTarget(new Reference(oobservation));
+					relObs.add(oorc);
+				}
+				observation.setRelated(relObs);			
+				resultReferenceDtList.add(new Reference(observation));
+			}
+			
+		}
+		if (!resultReferenceDtList.isEmpty()) {
+			diagnosticReport.setResult(resultReferenceDtList);
+		}
+
+		return diagnosticReport;
+	}
+
 
 	@Override
 	public DiagnosticReport updateFHIRDiagnosticReport(DiagnosticReport diagnosticReport, String theId) {
