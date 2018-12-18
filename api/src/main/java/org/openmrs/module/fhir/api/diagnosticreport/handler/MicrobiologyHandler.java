@@ -119,8 +119,83 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 		// Get Obs and set as `Name`
 		// Get Obs and set as `Status`
 
-		return generateDiagnosticReport(diagnosticReport, omrsDiagnosticReport, obsSetsMap);
+		
+		// @required: Get EncounterDateTime and set as `Issued` date
+		diagnosticReport.setIssued(omrsDiagnosticReport.getEncounterDatetime());
+
+		// @required: Get Encounter Patient and set as `Subject`
+		org.openmrs.Patient omrsPatient = omrsDiagnosticReport.getPatient();
+		diagnosticReport.getSubject().setResource(FHIRPatientUtil.generatePatient(omrsPatient));
+
+		// Get Encounter Provider and set as `Performer`
+		EncounterRole omrsEncounterRole = FHIRUtils.getEncounterRole();
+		Set<Provider> omrsProviderList = omrsDiagnosticReport.getProvidersByRole(omrsEncounterRole);
+		// If at least one provider is set (1..1 mapping in FHIR Diagnostic Report)
+		if (!omrsProviderList.isEmpty()) {
+			//Role name to a getCodingList display. Is that correct?
+			for (Provider practitioner : omrsProviderList) {
+				CodeableConcept roleConcept = new CodeableConcept();
+				Coding role = new Coding();
+				role.setDisplay(omrsEncounterRole.getName());
+				roleConcept.addCoding(role);
+				Reference practitionerReference = FHIRUtils.buildPractitionerReference(practitioner);
+				DiagnosticReport.DiagnosticReportPerformerComponent performer = diagnosticReport.addPerformer();
+				performer.setRole(roleConcept);
+				performer.setActor(practitionerReference);
+			}
+		}
+
+		// Get EncounterType and Set `ServiceCategory`
+		String serviceCategory = omrsDiagnosticReport.getEncounterType().getName();
+		List<Coding> serviceCategoryList = new ArrayList<>();
+		serviceCategoryList.add(new Coding(FHIRConstants.CODING_0074, serviceCategory, serviceCategory));
+		diagnosticReport.getCategory().setCoding(serviceCategoryList);
+
+		// Get valueDateTime in Obs and Set `Diagnosis[x]->DateTime`
+		// Get valueDateTime in Obs and Set `Diagnosis[x]->Period`
+
+		// ObsSet set as `Result`
+		List<Reference> resultReferenceDtList = new ArrayList<>();
+		List<Resource> containedResourceList = new ArrayList<>();
+		for (Obs resultObs : obsSetsMap.get(FHIRConstants.DIAGNOSTIC_REPORT_RESULT)) {
+			for (Obs obs : resultObs.getGroupMembers())
+			{
+				Observation observation = FHIRObsUtil.generateObs(obs);
+				observation.setInterpretation(invertInterpretation(obs));
+				observation.setId(new IdType());
+				
+				List<Observation.ObservationRelatedComponent> relObs = new ArrayList<>();
+				for (Obs oobs : obs.getGroupMembers()) {
+					List<Observation.ObservationRelatedComponent> arelObs = new ArrayList<>();
+					for (Obs bobs : oobs.getGroupMembers()) {
+						Observation aobservation = FHIRObsUtil.generateObs(bobs);
+						aobservation.setId(new IdType());
+						aobservation.setInterpretation(invertInterpretation(bobs));
+						Observation.ObservationRelatedComponent aorc = new ObservationRelatedComponent();
+						aorc.setTarget(new Reference(aobservation));
+						arelObs.add(aorc);
+					}
+					Observation oobservation = FHIRObsUtil.generateObs(oobs);
+					oobservation.setId(new IdType());
+					oobservation.setRelated(arelObs);
+					//nullify member value strings
+					oobservation.setValue(null);
+					Observation.ObservationRelatedComponent oorc = new ObservationRelatedComponent();
+					oorc.setTarget(new Reference(oobservation));
+					relObs.add(oorc);
+				}
+				observation.setRelated(relObs);			
+				resultReferenceDtList.add(new Reference(observation));
+			}
+			
+		}
+		if (!resultReferenceDtList.isEmpty()) {
+			diagnosticReport.setResult(resultReferenceDtList);
+		}
+
+		return diagnosticReport;
 	}
+
 
 	@Override
 	public DiagnosticReport saveFHIRDiagnosticReport(DiagnosticReport diagnosticReport) {
@@ -196,6 +271,7 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 			Obs obs = FHIRObsUtil.generateOpenMRSObs(observation, errors);
 			obs.setObsDatetime(diagnosticReport.getIssued());
 			obs.setObsGroup(resultObsGroup);
+			obs.setInterpretation(convertInterpretation(observation));
 			obs = obsService.saveObs(obs, null);
 			int numOrg = observation.getRelated().size();
             Set<Obs> orgObs = new HashSet<Obs>();
@@ -208,6 +284,7 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
                  int numAgent = org_observation.getRelated().size();
                  Set<Obs> agentObs = new HashSet<Obs>();
                  Obs oObs = FHIRObsUtil.generateOpenMRSObs(org_observation, errors);
+                 //oObs.setInterpretation(convertInterpretation(org_observation));
                  oObs.setObsDatetime(diagnosticReport.getIssued());
                  oObs.setObsGroup(obs);
                  Context.getObsService().saveObs(oObs,null);
@@ -217,9 +294,7 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
                 	 agent_observation.setSubject(diagnosticReport.getSubject());
                  	 Obs aObs = FHIRObsUtil.generateOpenMRSObs(agent_observation, errors);
                  	 aObs.setObsDatetime(diagnosticReport.getIssued());
-                 	 if (aObs.getInterpretation() == null) {
-                 		aObs.setInterpretation(convertInterpretation(agent_observation));
-                 	 }
+                 	 aObs.setInterpretation(convertInterpretation(agent_observation));
                  	 aObs.setObsGroup(oObs);
                  	 Context.getObsService().saveObs(aObs, null);
                  }
@@ -316,106 +391,69 @@ public class MicrobiologyHandler extends AbstractHandler implements DiagnosticRe
 		}
 	}
 	
+	private CodeableConcept invertInterpretation(Obs observation) {
+		Interpretation interpretation = observation.getInterpretation();;
+	    Coding code = new Coding();
+	    CodeableConcept concept = new CodeableConcept();
+	    String valueConceptCode = null;
+	    String valueSystem = null;
+	    if(interpretation ==  Interpretation.RESISTANT) {
+	    	valueConceptCode = "R";
+	    	valueSystem = "http://hl7.org/fhir/v2/0078";
+	    }
+	    if(interpretation ==  Interpretation.INTERMEDIATE) {
+	    	valueConceptCode = "I";
+	    	valueSystem = "http://hl7.org/fhir/v2/0078";
+	    }
+	    if(interpretation ==  Interpretation.SUSCEPTIBLE) {
+	    	valueConceptCode = "S";
+	    	valueSystem = "http://hl7.org/fhir/v2/0078";
+	    }
+	    if(interpretation ==  Interpretation.POSITIVE) {
+	    	valueConceptCode = "POS";
+	    	valueSystem = "http://hl7.org/fhir/v2/0078";
+	    }
+	    if(interpretation ==  Interpretation.NEGATIVE) {
+	    	valueConceptCode = "NEG";
+	    	valueSystem = "http://hl7.org/fhir/v2/0078";
+	    }
+	    code.setSystem(valueSystem);
+	    code.setCode(valueConceptCode);
+	    concept.addCoding(code);
+		return  concept;
+		}
+	
 	private Interpretation convertInterpretation(Observation observation) {
 	CodeableConcept obs_interpretation = observation.getInterpretation();
     List<Coding> codingDts = obs_interpretation.getCoding();
-    Coding codingDt = codingDts.get(0);
     String valueConceptCode = null;
     String valueSystem = null;
     Interpretation interpretation = null;
-    valueConceptCode = codingDt.getCode();
-    valueSystem = codingDt.getSystem();
-	if (valueSystem.equals("http://hl7.org/fhir/v2/0078")) {
-		if(valueConceptCode.equals("R")) {
-            interpretation =  Interpretation.RESISTANT;
-		}
-		if(valueConceptCode.equals("I")) {
-			interpretation =  Interpretation.INTERMEDIATE;
-		}
-		if(valueConceptCode.equals("S")) {
-		    interpretation = Interpretation.SUSCEPTIBLE;
-		}
-	}
+    if (codingDts.size() > 0) {
+    	Coding codingDt = codingDts.get(0);
+    	valueConceptCode = codingDt.getCode();
+    	valueSystem = codingDt.getSystem();
+    	if (valueSystem.equals("http://hl7.org/fhir/v2/0078")) {
+    		if(valueConceptCode.equals("R")) {
+    			interpretation =  Interpretation.RESISTANT;
+    		}	
+    		if(valueConceptCode.equals("I")) {
+    			interpretation =  Interpretation.INTERMEDIATE;
+    		}
+    		if(valueConceptCode.equals("S")) {
+    			interpretation = Interpretation.SUSCEPTIBLE;
+    		}
+    		if(valueConceptCode.equals("POS")){
+    			interpretation = Interpretation.POSITIVE;
+    		}
+    		if(valueConceptCode.equals("NEG")) {
+    			interpretation = Interpretation.NEGATIVE;
+    		}
+    	}
+    }
 	return interpretation;
 	}
 	
-
-	@Override 
-	protected DiagnosticReport generateDiagnosticReport(DiagnosticReport diagnosticReport, Encounter omrsDiagnosticReport,
-			Map<String, Set<Obs>> obsSetsMap) {
-		// @required: Get EncounterDateTime and set as `Issued` date
-		diagnosticReport.setIssued(omrsDiagnosticReport.getEncounterDatetime());
-
-		// @required: Get Encounter Patient and set as `Subject`
-		org.openmrs.Patient omrsPatient = omrsDiagnosticReport.getPatient();
-		diagnosticReport.getSubject().setResource(FHIRPatientUtil.generatePatient(omrsPatient));
-
-		// Get Encounter Provider and set as `Performer`
-		EncounterRole omrsEncounterRole = FHIRUtils.getEncounterRole();
-		Set<Provider> omrsProviderList = omrsDiagnosticReport.getProvidersByRole(omrsEncounterRole);
-		// If at least one provider is set (1..1 mapping in FHIR Diagnostic Report)
-		if (!omrsProviderList.isEmpty()) {
-			//Role name to a getCodingList display. Is that correct?
-			for (Provider practitioner : omrsProviderList) {
-				CodeableConcept roleConcept = new CodeableConcept();
-				Coding role = new Coding();
-				role.setDisplay(omrsEncounterRole.getName());
-				roleConcept.addCoding(role);
-				Reference practitionerReference = FHIRUtils.buildPractitionerReference(practitioner);
-				DiagnosticReport.DiagnosticReportPerformerComponent performer = diagnosticReport.addPerformer();
-				performer.setRole(roleConcept);
-				performer.setActor(practitionerReference);
-			}
-		}
-
-		// Get EncounterType and Set `ServiceCategory`
-		String serviceCategory = omrsDiagnosticReport.getEncounterType().getName();
-		List<Coding> serviceCategoryList = new ArrayList<>();
-		serviceCategoryList.add(new Coding(FHIRConstants.CODING_0074, serviceCategory, serviceCategory));
-		diagnosticReport.getCategory().setCoding(serviceCategoryList);
-
-		// Get valueDateTime in Obs and Set `Diagnosis[x]->DateTime`
-		// Get valueDateTime in Obs and Set `Diagnosis[x]->Period`
-
-		// ObsSet set as `Result`
-		List<Reference> resultReferenceDtList = new ArrayList<>();
-		List<Resource> containedResourceList = new ArrayList<>();
-		for (Obs resultObs : obsSetsMap.get(FHIRConstants.DIAGNOSTIC_REPORT_RESULT)) {
-			
-			for (Obs obs : resultObs.getGroupMembers())
-			{
-				Observation observation = FHIRObsUtil.generateObs(obs);
-				observation.setId(new IdType());
-				
-				List<Observation.ObservationRelatedComponent> relObs = new ArrayList<>();
-				for (Obs oobs : obs.getGroupMembers()) {
-					List<Observation.ObservationRelatedComponent> arelObs = new ArrayList<>();
-					for (Obs bobs : oobs.getGroupMembers()) {
-						Observation aobservation = FHIRObsUtil.generateObs(bobs);
-						aobservation.setId(new IdType());
-						Observation.ObservationRelatedComponent aorc = new ObservationRelatedComponent();
-						aorc.setTarget(new Reference(aobservation));
-						arelObs.add(aorc);
-					}
-					
-					Observation oobservation = FHIRObsUtil.generateObs(oobs);
-					oobservation.setId(new IdType());
-					oobservation.setRelated(arelObs);
-					Observation.ObservationRelatedComponent oorc = new ObservationRelatedComponent();
-					oorc.setTarget(new Reference(oobservation));
-					relObs.add(oorc);
-				}
-				observation.setRelated(relObs);			
-				resultReferenceDtList.add(new Reference(observation));
-			}
-			
-		}
-		if (!resultReferenceDtList.isEmpty()) {
-			diagnosticReport.setResult(resultReferenceDtList);
-		}
-
-		return diagnosticReport;
-	}
 
 
 	@Override
