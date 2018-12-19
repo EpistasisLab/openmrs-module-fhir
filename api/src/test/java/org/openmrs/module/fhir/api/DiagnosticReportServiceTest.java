@@ -51,6 +51,10 @@ public class DiagnosticReportServiceTest extends BaseModuleContextSensitiveTest 
 		DiagnosticReportHandler radiologyHandler = service.getHandler("RAD");
 		assertNotNull(radiologyHandler);
 		assertEquals("RAD", radiologyHandler.getServiceCategory());
+		
+		DiagnosticReportHandler microbiologyHandler = service.getHandler("MB");
+		assertNotNull(microbiologyHandler);
+		assertEquals("MB", microbiologyHandler.getServiceCategory());
 	}
 
 }

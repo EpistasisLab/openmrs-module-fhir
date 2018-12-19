@@ -15,12 +15,13 @@ import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Component("DefaultObservationStrategy")
 public class ObservationStrategy implements GenericObservationStrategy {
-
 	@Override
 	public Observation getObservation(String uuid) {
 		Obs omrsObs = Context.getObsService().getObsByUuid(uuid);
@@ -186,10 +187,24 @@ public class ObservationStrategy implements GenericObservationStrategy {
 		} else {
 			obs = FHIRObsUtil.generateOpenMRSObs(observation, errors);
 		}
+                int numRelated = observation.getRelated().size();
+                Set<Obs> relObs = new HashSet<Obs>();
+                for (int i = 0; i < numRelated; i++) {
+                    String relRef = observation.getRelated().get(i).getTarget().getReference();
+                    String ref_uuid = FHIRUtils.extractUuid(relRef);
+                    Obs related_obs = Context.getObsService().getObsByUuid(ref_uuid);
+                    if (related_obs != null) {
+                        relObs.add(related_obs);
+                    }
+                }
+                for (Obs related_obs : relObs) {
+                    obs.addGroupMember(related_obs);
+                }
 		FHIRUtils.checkGeneratorErrorList(errors);
 		obs = Context.getObsService().saveObs(obs, FHIRConstants.FHIR_CREATE_MESSAGE);
 		return FHIRObsUtil.generateObs(obs);
 	}
+
 
 	@Override
 	public Observation updateFHITObservation(Observation observation, String uuid) {

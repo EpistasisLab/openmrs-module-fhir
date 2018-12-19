@@ -567,6 +567,8 @@ public class FHIRUtils {
 	}
 
 	private static Concept getConceptByConceptId(String globalPropertyName) {
+        System.out.println("globalPropertyName");
+        System.out.println(globalPropertyName);
 		String globalProperty = Context.getAdministrationService().getGlobalProperty(globalPropertyName);
 		Concept concept = Context.getConceptService().getConcept(Integer.parseInt(globalProperty));
 		if (concept == null) {
