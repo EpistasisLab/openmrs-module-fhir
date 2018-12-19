@@ -149,7 +149,7 @@
 
 	<globalProperty>
 		<property>${project.parent.artifactId}.allergy.strategy</property>
-		<defaultValue>ActiveListAllergyStrategy</defaultValue>
+		<defaultValue>DefaultAllergyStrategy</defaultValue>
 		<description>Set allergy strategy</description>
 	</globalProperty>
 
@@ -223,6 +223,18 @@
 		<property>${project.parent.artifactId}.medication.strategy</property>
 		<defaultValue>DefaultMedicationStrategy</defaultValue>
 		<description>Set medication strategy.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>${project.parent.artifactId}.medicationRequest.strategy</property>
+		<defaultValue>DefaultMedicationRequestStrategy</defaultValue>
+		<description>Set medication request strategy.</description>
+	</globalProperty>
+
+	<globalProperty>
+		<property>${project.parent.artifactId}.procedureRequest.strategy</property>
+		<defaultValue>DefaultProcedureRequestStrategy</defaultValue>
+		<description>Set procedure request strategy.</description>
 	</globalProperty>
 
 	<globalProperty>

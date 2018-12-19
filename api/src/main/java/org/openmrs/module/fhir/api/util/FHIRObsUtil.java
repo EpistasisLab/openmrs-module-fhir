@@ -51,6 +51,9 @@ public class FHIRObsUtil {
 	public static Observation generateObs(Obs obs) {
 
 		Observation observation = new Observation();
+
+		BaseOpenMRSDataUtil.setBaseExtensionFields(observation, obs);
+
 		//Set observation id
 		observation.setId(obs.getUuid());
 		//Set issued date
@@ -91,7 +94,7 @@ public class FHIRObsUtil {
 
 		//Set codings from openmrs concept mappings
 		for (ConceptMap map : mappings) {
-			dts.add(FHIRUtils.getCodingDtByConceptMappings(map));
+			dts.add(FHIRUtils.createCoding(map));
 		}
 		//Set openmrs concept
 		dts.add(FHIRUtils.getCodingDtByOpenMRSConcept(obs.getConcept()));
@@ -161,7 +164,7 @@ public class FHIRObsUtil {
 				//Set codings from openmrs concept mappings
 				for (ConceptMap map : valueMappings) {
 					if (map.getConceptReferenceTerm() != null) {
-						values.add(FHIRUtils.getCodingDtByConceptMappings(map));
+						values.add(FHIRUtils.createCoding(map));
 					}
 				}
 				//Set openmrs concept
@@ -255,6 +258,9 @@ public class FHIRObsUtil {
 
 	public static Obs generateOpenMRSObs(Observation observation, List<String> errors) {
 		Obs obs = new Obs();
+
+		BaseOpenMRSDataUtil.readBaseExtensionFields(obs, observation);
+
 		obs.setComment(observation.getComment());
 		if (observation.getSubject() != null) {
 			Reference subjectref = observation.getSubject();

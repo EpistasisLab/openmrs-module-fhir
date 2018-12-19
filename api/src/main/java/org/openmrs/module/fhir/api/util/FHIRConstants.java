@@ -126,6 +126,10 @@ public final class FHIRConstants {
 
 	public static final String OBSERVATION = "Observation";
 
+	public static final String MEDICATION = "Medication";
+
+	public static final String MEDICATION_REQUEST = "MedicationRequest";
+
 	public static final String NUMERIC_CONCEPT_MEASURE_URI = "http://unitsofmeasure.org";
 
 	//HL47 Abbrevations
@@ -228,6 +232,30 @@ public final class FHIRConstants {
 	public static final String FHIR_UPDATE_MESSAGE = "Updated by FHIR request";
 
 	public static final String FHIR_VOIDED_MESSAGE = "Voided by FHIR request";
+
+	public static final String CATEGORY_PATIENT = "patient";
+
+	public static final String CATEGORY_VISIT = "visit";
+
+	public static final String CATEGORY_ENCOUNTER = "encounter";
+
+	public static final String CATEGORY_OBSERVATION = "observation";
+
+	public static final String CATEGORY_LOCATION = "location";
+
+	public static final String CATEGORY_PRACTITIONER = "practitioner";
+
+	public static final String CATEGORY_PROVIDER = "provider";
+
+	public static final String CATEGORY_PERSON = "person";
+
+	public static final String CATEGORY_ALLERGY = "allergy";
+
+	public static final String CATEGORY_COHORT = "cohort";
+
+	public static final String CATEGORY_DRUG_ORDER = "drug_order";
+
+	public static final String CATEGORY_TEST_ORDER = "test_order";
 
 	public static final String POST = "POST";
 
