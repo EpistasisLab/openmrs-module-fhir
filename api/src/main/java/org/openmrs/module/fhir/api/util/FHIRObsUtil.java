@@ -69,10 +69,15 @@ public class FHIRObsUtil {
 		//Set fhir observation comment
 		observation.setComment(obs.getComment());
 		observation.setSubject(FHIRUtils.buildPatientOrPersonResourceReference(obs.getPerson()));
+		
 		//Set fhir performers from openmrs providers
 		List<Reference> performers = new ArrayList<>();
-		if (obs.getEncounter() != null) {
-			for (EncounterProvider provider : obs.getEncounter().getEncounterProviders()) {
+		Encounter encounter = obs.getEncounter();
+		if (encounter != null) {
+			//Set fhir encounter context
+			Reference encounterRef =  getFHIREncounterReference(encounter);
+			observation.setContext(encounterRef);
+			for (EncounterProvider provider : encounter.getEncounterProviders()) {
 				Reference providerReference = new Reference();
 				StringBuilder providerNameDisplay = new StringBuilder();
 				providerNameDisplay.append(provider.getProvider().getName());
