@@ -28,7 +28,9 @@ import org.hl7.fhir.dstu3.model.Quantity;
 import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.SimpleQuantity;
 import org.hl7.fhir.dstu3.model.StringType;
+import org.hl7.fhir.exceptions.FHIRException;
 import org.openmrs.Concept;
+import org.openmrs.ConceptAnswer;
 import org.openmrs.ConceptMap;
 import org.openmrs.ConceptNumeric;
 import org.openmrs.Encounter;
@@ -253,8 +255,8 @@ public class FHIRObsUtil {
 
 		obs.setComment(observation.getComment());
 		if (observation.getSubject() != null) {
-			Reference subjectref = observation.getSubject();
-			String patientUuid = subjectref.getId();
+			String subjectref = observation.getSubject().getReference();
+			String patientUuid = FHIRUtils.extractUuid(subjectref);
 			org.openmrs.Person person = Context.getPersonService().getPersonByUuid(patientUuid);
 			if (person == null) {
 				errors.add("There is no person for the given uuid");
@@ -276,19 +278,19 @@ public class FHIRObsUtil {
 		if (observation.getEffective() instanceof DateTimeType) {
 			dateEffective = ((DateTimeType) observation.getEffective()).getValue();
 			if (dateEffective == null) {
-				errors.add("Observation DateTime cannot be empty");
+				errors.add("Observation DateTime cannot be empty 1");
 			} else {
 				obs.setObsDatetime(dateEffective);
 			}
 		} else if (observation.getEffective() instanceof Period) {
 			dateEffective = ((Period) observation.getEffective()).getStart();
 			if (dateEffective == null) {
-				errors.add("Observation DateTime cannot be empty");
+				errors.add("Observation DateTime cannot be empty 2");
 			} else {
 				obs.setObsDatetime(dateEffective);
 			}
 		} else {
-			errors.add("Observation DateTime cannot be empty");
+			errors.add("Observation DateTime cannot be empty 3");
 		}
 
 		Concept concept = null;
@@ -348,6 +350,33 @@ public class FHIRObsUtil {
 				} else if (FHIRConstants.CWE_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
 					CodeableConcept codeableConcept = (CodeableConcept) observation.getValue();
 					obs.setValueCoded(FHIRUtils.getConceptByCodeableConcept(codeableConcept));
+					CodeableConcept valueCodeableConceptDt;
+					try {
+						valueCodeableConceptDt = observation.getValueCodeableConcept();
+						String valueConceptCode = null;
+						String valueSystem = null;
+						Concept valueConcept = null;
+						try {
+							List<Coding> vcodingDts = valueCodeableConceptDt.getCoding();
+							Coding codingDt3 = vcodingDts.get(0);
+							valueConceptCode = codingDt3.getCode();
+							valueSystem = codingDt3.getSystem();
+							if (FHIRConstants.OPENMRS_URI.equals(valueSystem)) {
+								valueConcept = Context.getConceptService().getConceptByUuid(valueConceptCode);
+							    obs.setValueCoded(valueConcept);
+							
+							}
+						}
+						catch (NullPointerException e) {
+							errors.add("Setting valueConcept failed");
+							log.error("Setting valueConcept failed " + e.getMessage());
+						}
+						
+						
+					} catch (FHIRException e1) {
+						errors.add("Setting Codeable Concept failed");
+						log.error("Setting Codeable Concept failed " + e1.getMessage());
+					}
 				}
 			}
 		}

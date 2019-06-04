@@ -470,7 +470,12 @@ public class FHIREncounterUtil {
 	}
 
 	public static boolean shouldBeConsideredAsVisit(Encounter encounter) {
-		return encounter.getTypeFirstRep().getCodingFirstRep().getUserSelected();
+		if (encounter.getPartOf().getReference() == null) {
+			return true;
+		} else {
+			return encounter.getTypeFirstRep().getCodingFirstRep().getUserSelected();	
+		}
+		
 	}
 
 	public static void markAsVisitType(Coding coding) {
