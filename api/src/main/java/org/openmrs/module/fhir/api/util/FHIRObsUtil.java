@@ -13,6 +13,7 @@
  */
 package org.openmrs.module.fhir.api.util;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -20,23 +21,22 @@ import org.hl7.fhir.dstu3.model.Attachment;
 import org.hl7.fhir.dstu3.model.CodeableConcept;
 import org.hl7.fhir.dstu3.model.Coding;
 import org.hl7.fhir.dstu3.model.DateTimeType;
+import org.hl7.fhir.dstu3.model.Extension;
 import org.hl7.fhir.dstu3.model.Observation;
 import org.hl7.fhir.dstu3.model.Period;
 import org.hl7.fhir.dstu3.model.Quantity;
 import org.hl7.fhir.dstu3.model.Reference;
 import org.hl7.fhir.dstu3.model.SimpleQuantity;
 import org.hl7.fhir.dstu3.model.StringType;
-import org.hl7.fhir.exceptions.FHIRException;
 import org.openmrs.Concept;
-import org.openmrs.ConceptAnswer;
 import org.openmrs.ConceptMap;
 import org.openmrs.ConceptNumeric;
 import org.openmrs.Encounter;
 import org.openmrs.EncounterProvider;
+import org.openmrs.Location;
 import org.openmrs.Obs;
-import org.openmrs.Obs.Interpretation;
-import org.openmrs.Obs.Status;
 import org.openmrs.api.context.Context;
+import org.openmrs.module.fhir.api.constants.ExtensionURL;
 import org.openmrs.obs.ComplexData;
 
 import java.math.BigDecimal;
@@ -65,19 +65,14 @@ public class FHIRObsUtil {
 		DateTimeType type = new DateTimeType();
 		type.setValue(obs.getObsDatetime());
 		observation.setEffective(type);
-
 		//Set fhir observation comment
 		observation.setComment(obs.getComment());
 		observation.setSubject(FHIRUtils.buildPatientOrPersonResourceReference(obs.getPerson()));
-		
 		//Set fhir performers from openmrs providers
 		List<Reference> performers = new ArrayList<>();
-		Encounter encounter = obs.getEncounter();
-		if (encounter != null) {
-			//Set fhir encounter context
-			Reference encounterRef =  getFHIREncounterReference(encounter);
-			observation.setContext(encounterRef);
-			for (EncounterProvider provider : encounter.getEncounterProviders()) {
+		if (obs.getEncounter() != null) {
+			observation.setContext(getFHIREncounterReference(obs.getEncounter()));
+			for (EncounterProvider provider : obs.getEncounter().getEncounterProviders()) {
 				Reference providerReference = new Reference();
 				StringBuilder providerNameDisplay = new StringBuilder();
 				providerNameDisplay.append(provider.getProvider().getName());
@@ -165,20 +160,9 @@ public class FHIRObsUtil {
 			observation.setValue(datetime);
 
 		} else if (FHIRConstants.CWE_HL7_ABBREVATION.equalsIgnoreCase(obs.getConcept().getDatatype().getHl7Abbreviation())) {
-			if (obs.getValueCoded() != null) {
-				Collection<ConceptMap> valueMappings = obs.getValueCoded().getConceptMappings();
-				List<Coding> values = new ArrayList<>();
-				//Set codings from openmrs concept mappings
-				for (ConceptMap map : valueMappings) {
-					if (map.getConceptReferenceTerm() != null) {
-						values.add(FHIRUtils.createCoding(map));
-					}
-				}
-				//Set openmrs concept
-				values.add(FHIRUtils.getCodingDtByOpenMRSConcept(obs.getValueCoded()));
-				CodeableConcept codeableConceptDt = new CodeableConcept();
-				codeableConceptDt.setCoding(values);
-				observation.setValue(codeableConceptDt);
+			Concept concept = obs.getValueCoded();
+			if (concept != null) {
+				observation.setValue(FHIRUtils.createCodeableConcept(concept));
 			}
 		} else if (FHIRConstants.ED_HL7_ABBREVATION.equalsIgnoreCase(obs.getConcept().getDatatype().getHl7Abbreviation())) {
 			Attachment attachmentDt = new Attachment();
@@ -191,25 +175,9 @@ public class FHIRObsUtil {
 			observation.setValue(value);
 		}
 
-		CodeableConcept interpretation = null;
-		Observation.ObservationStatus status = Observation.ObservationStatus.FINAL;
-		try {
-			Status stat = obs.getStatus();
-			if (stat != null) {
-				status = Observation.ObservationStatus.valueOf(stat.name());
-			}
-
-			Interpretation interpret = obs.getInterpretation();
-			if (interpret != null) {
-				interpretation = new CodeableConcept();
-				interpretation.setText(interpret.name());
-			}
-		}
-		catch (NoSuchMethodError ex) {
-			//must be running below platform 2.1
-		}
-
+		Observation.ObservationStatus status = ContextUtil.getObsHelper().getObsStatus(obs);
 		observation.setStatus(status);
+		CodeableConcept interpretation = ContextUtil.getObsHelper().getInterpretation(obs);
 		observation.setInterpretation(interpretation);
 		observation.setIssued(obs.getObsDatetime());
 
@@ -246,6 +214,17 @@ public class FHIRObsUtil {
 			relatedObs.add(related);
 		}
 		observation.setRelated(relatedObs);
+		if (obs.getObsGroup() != null) {
+			Observation.ObservationRelatedComponent related = new Observation.ObservationRelatedComponent();
+			related.setType(Observation.ObservationRelationshipType.DERIVEDFROM);
+			Reference resourceReferenceDt = new Reference();
+			resourceReferenceDt.setDisplay(obs.getObsGroup().getConcept().getName().getName());
+			String obsUri = FHIRConstants.OBSERVATION + "/" + obs.getObsGroup().getUuid();
+			resourceReferenceDt.setReference(obsUri);
+			related.setTarget(resourceReferenceDt);
+			observation.addRelated(related);
+		}
+		observation.addExtension(buildLocationExtension(obs.getLocation()));
 		return observation;
 	}
 
@@ -268,10 +247,14 @@ public class FHIRObsUtil {
 
 		BaseOpenMRSDataUtil.readBaseExtensionFields(obs, observation);
 
+		if (StringUtils.isNotBlank(observation.getId())) {
+			obs.setUuid(FHIRUtils.extractUuid(observation.getId()));
+		}
+
 		obs.setComment(observation.getComment());
 		if (observation.getSubject() != null) {
-			String subjectref = observation.getSubject().getReference();
-			String patientUuid = FHIRUtils.extractUuid(subjectref);
+			Reference subjectref = observation.getSubject();
+			String patientUuid = subjectref.getId();
 			org.openmrs.Person person = Context.getPersonService().getPersonByUuid(patientUuid);
 			if (person == null) {
 				errors.add("There is no person for the given uuid");
@@ -293,19 +276,19 @@ public class FHIRObsUtil {
 		if (observation.getEffective() instanceof DateTimeType) {
 			dateEffective = ((DateTimeType) observation.getEffective()).getValue();
 			if (dateEffective == null) {
-				errors.add("Observation DateTime cannot be empty 1");
+				errors.add("Observation DateTime cannot be empty");
 			} else {
 				obs.setObsDatetime(dateEffective);
 			}
 		} else if (observation.getEffective() instanceof Period) {
 			dateEffective = ((Period) observation.getEffective()).getStart();
 			if (dateEffective == null) {
-				errors.add("Observation DateTime cannot be empty 2");
+				errors.add("Observation DateTime cannot be empty");
 			} else {
 				obs.setObsDatetime(dateEffective);
 			}
 		} else {
-			errors.add("Observation DateTime cannot be empty 3");
+			errors.add("Observation DateTime cannot be empty");
 		}
 
 		Concept concept = null;
@@ -363,54 +346,71 @@ public class FHIRObsUtil {
 					obs.setValueComplex(byteStream.toString());
 					obs.setComplexData(data);
 				} else if (FHIRConstants.CWE_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
-					CodeableConcept valueCodeableConceptDt;
-					try {
-						valueCodeableConceptDt = observation.getValueCodeableConcept();
-						String valueConceptCode = null;
-						String valueSystem = null;
-						Concept valueConcept = null;
-						try {
-							List<Coding> vcodingDts = valueCodeableConceptDt.getCoding();
-							Coding codingDt3 = vcodingDts.get(0);
-							valueConceptCode = codingDt3.getCode();
-							valueSystem = codingDt3.getSystem();
-							if (FHIRConstants.OPENMRS_URI.equals(valueSystem)) {
-								valueConcept = Context.getConceptService().getConceptByUuid(valueConceptCode);
-							    obs.setValueCoded(valueConcept);
-							
-							}
-						}
-						catch (NullPointerException e) {
-							errors.add("Setting valueConcept failed");
-							log.error("Setting valueConcept failed " + e.getMessage());
-						}
-						
-						
-					} catch (FHIRException e1) {
-						errors.add("Setting Codeable Concept failed");
-						log.error("Setting Codeable Concept failed " + e1.getMessage());
-					}
+					CodeableConcept codeableConcept = (CodeableConcept) observation.getValue();
+					obs.setValueCoded(FHIRUtils.getConceptByCodeableConcept(codeableConcept));
 				}
 			}
 		}
 
+		if (hasGroupMembers(observation) && StringUtils.isBlank(obs.getValueText())) {
+			//TODO: Used to correctly save obs when the parent obs of group is save as first, see SpecificObsValidator.validate
+			obs.setValueText(FHIRConstants.OBS_GROUP_MEMBER_TEXT_VALUE);
+		}
+		setObsGroup(observation, obs);
+
 		CodeableConcept interpretation = observation.getInterpretation();
+		ContextUtil.getObsHelper().setInterpretation(obs, interpretation);
 		Observation.ObservationStatus status = observation.getStatus();
-
-		try {
-			if (status != null) {
-				obs.setStatus(Status.valueOf(status.name()));
-			}
-
-			if (interpretation != null && StringUtils.isNotBlank(interpretation.getText())) {
-				obs.setInterpretation(Interpretation.valueOf(interpretation.getText()));
-			}
-		}
-		catch (NoSuchMethodError ex) {
-			//must be running below platform 2.1
-		}
+		ContextUtil.getObsHelper().setStatus(obs, status);
+		obs.setLocation(buildLocationBasedOnExtension(observation));
 
 		return obs;
+	}
+
+	private static Extension buildLocationExtension(Location location) {
+		Extension result = null;
+		if (location != null) {
+			result = ExtensionsUtil.createLocationUuidExtension(location);
+		}
+		return result;
+	}
+
+	private static Location buildLocationBasedOnExtension(Observation observation) {
+		String locationUuid = getFormUuidFromExtension(observation);
+		if (StringUtils.isNotBlank(locationUuid)) {
+			return Context.getLocationService().getLocationByUuid(locationUuid);
+		}
+		return null;
+	}
+
+	private static String getFormUuidFromExtension(Observation observation) {
+		List<Extension> extensions = observation.getExtensionsByUrl(ExtensionURL.LOCATION_UUID_URL);
+		if (!CollectionUtils.isEmpty(extensions)) {
+			return ExtensionsUtil.getStringFromExtension(extensions.get(FHIRConstants.FIRST));
+		}
+		return null;
+	}
+
+	private static void setObsGroup(Observation observation, Obs obs) {
+		for (Observation.ObservationRelatedComponent component : observation.getRelated()) {
+			if (component.getType().equals(Observation.ObservationRelationshipType.DERIVEDFROM)) {
+				String parentUuid = FHIRUtils.getObjectUuidByReference(component.getTarget());
+				Obs parent = Context.getObsService().getObsByUuid(parentUuid);
+				obs.setObsGroup(parent);
+				break;
+			}
+		}
+	}
+
+	public static boolean hasGroupMembers(Observation observation) {
+		boolean hasMembers = false;
+		for (Observation.ObservationRelatedComponent component : observation.getRelated()) {
+			if (component.getType().equals(Observation.ObservationRelationshipType.HASMEMBER)) {
+				hasMembers = true;
+				break;
+			}
+		}
+		return hasMembers;
 	}
 
 	public static Obs copyObsAttributes(Obs requestObs, Obs retrievedObs, List<String> errors) {
@@ -431,6 +431,8 @@ public class FHIRObsUtil {
 				}
 			} else if (FHIRConstants.BIT_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
 				retrievedObs.setValueCoded(requestObs.getValueCoded());
+			} else if (FHIRConstants.CWE_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
+				retrievedObs.setValueCoded(requestObs.getValueCoded());
 			} else if (FHIRConstants.TS_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
 				retrievedObs.setValueDatetime(requestObs.getValueDatetime());
 			} else if (FHIRConstants.DT_HL7_ABBREVATION.equalsIgnoreCase(concept.getDatatype().getHl7Abbreviation())) {
@@ -440,6 +442,8 @@ public class FHIRObsUtil {
 			}
 		}
 		retrievedObs.setComment(requestObs.getComment());
+		retrievedObs.setEncounter(requestObs.getEncounter());
+		retrievedObs.setLocation(requestObs.getLocation());
 		return retrievedObs;
 	}
 
