@@ -72,12 +72,8 @@ public class DiagnosticReportServiceImpl extends BaseOpenmrsService implements D
 		// Find Diagnostic Report (Encounter) in OpenMRS database
 		EncounterService encounterService = Context.getEncounterService();
 		Encounter omrsDiagnosticReport = encounterService.getEncounterByUuid(id);
-                System.out.println("encounter id");
-                System.out.println(id);
 		// Get corresponding Handler
 		String handlerName = omrsDiagnosticReport.getEncounterType().getName();
-                System.out.println("handlerName");
-                System.out.println(handlerName);
 
 		return FHIRDiagnosticReportUtil.getFHIRDiagnosticReport(id, getHandler(handlerName));
 	}
