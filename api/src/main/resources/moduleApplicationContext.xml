@@ -457,6 +457,12 @@
 										</key>
 										<bean class="org.openmrs.module.fhir.api.diagnosticreport.handler.MicrobiologyHandler"/>
 									</entry>
+									<entry>
+										<key>
+											<value>IcuHandler</value>
+										</key>
+										<bean class="org.openmrs.module.fhir.api.diagnosticreport.handler.IcuHandler"/>
+									</entry>
 								</map>
 							</property>
 						</bean>

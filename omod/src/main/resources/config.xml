@@ -277,6 +277,12 @@
 		</description>
 	</globalProperty>
 	<globalProperty>
+		<property>${project.parent.artifactId}.encounter.encounterType.ICU</property>
+		<defaultValue>01234-abcde-56789</defaultValue>
+		<description>EncounterType uuid for ICU in http://hl7.org/implement/standards/fhir/v2/0074/index.html
+		</description>
+	</globalProperty>
+	<globalProperty>
 		<property>${project.parent.artifactId}.encounter.encounterType.MB</property>
 		<defaultValue>01234-abcde-56789</defaultValue>
 		<description>EncounterType uuid for Microbiology in http://hl7.org/implement/standards/fhir/v2/0074/index.html
